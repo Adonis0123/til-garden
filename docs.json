@@ -5,6 +5,11 @@
   "colors": {
     "primary": "#2563EB"
   },
+  "favicon": "/favicon.ico",
+  "logo": {
+    "light": "/logo.png",
+    "dark": "/logo.png"
+  },
   "navigation": {
     "tabs": [
       {
@@ -20,7 +25,7 @@
           {
             "group": "Frontend",
             "pages": [
-              "frontend/react-patterns"
+              "frontend/iconify-tailwind4"
             ]
           }
         ]

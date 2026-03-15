@@ -1,0 +1,144 @@
+---
+title: '@iconify/tailwind4 是怎么工作的？零 JS 的 CSS 图标方案解析'
+description: 深入解析 @iconify/tailwind4 的纯构建时 CSS 图标方案，理解 Data URI 和 Mask 模式的工作原理
+---
+
+前端项目里用图标，你有很多选择：Icon Font、React 组件、SVG Sprite……但如果我告诉你，有一种方案**运行时零 JS、零网络请求、还能用 Tailwind 类名改颜色**，你会不会想了解一下？
+
+这就是 `@iconify/tailwind4`——一个纯构建时的 CSS 图标方案。
+
+## 一句话原理
+
+```
+Tailwind 扫描源码中的类名（如 icon-[mdi--github]）
+  → 插件从图标集 JSON 加载对应 SVG 数据
+  → 将 SVG 编码为 Data URI
+  → 生成 CSS 规则注入最终样式表
+```
+
+整个过程发生在构建阶段。打包完成后，浏览器拿到的只是普通 CSS，没有任何 JavaScript runtime。
+
+## 两个关键概念
+
+### Data URI：把图片塞进字符串
+
+通常加载一张图需要发 HTTP 请求：
+
+```html
+<img src="https://example.com/icon.svg" />
+```
+
+Data URI 则是把文件内容直接编码进 URL，不需要网络请求：
+
+```
+data:image/svg+xml,%3Csvg xmlns='...' viewBox='0 0 24 24'%3E%3Cpath d='M12...'/%3E%3C/svg%3E
+```
+
+其中 `%3C` 就是 `<`，`%3E` 就是 `>`——标准的 URL 编码。每个图标大约 200–500 bytes，几十个图标对 CSS 体积的影响可以忽略。
+
+### Mask 模式：喷漆模板
+
+这是理解整个方案的核心。`mask-image` 的原理就像**喷漆模板**：
+
+1. 在纸上剪出一个星星形状的洞（**mask = SVG 图标形状**）
+2. 盖在墙上喷漆（**background-color = currentColor**）
+3. 墙上出现一个有颜色的星星（**最终渲染结果**）
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│ ██████████  │     │             │     │             │
+│ ██████████  │  +  │   ★ 形状   │  =  │   ★ 蓝色   │
+│ ██████████  │     │    的洞     │     │             │
+│  纯蓝色背景  │     │   SVG遮罩   │     │   最终效果   │
+└─────────────┘     └─────────────┘     └─────────────┘
+  background         mask-image           页面上看到的
+```
+
+对应的 CSS 很简单：
+
+```css
+.icon {
+  mask-image: var(--svg);           /* SVG 形状作为遮罩 */
+  background-color: currentColor;   /* 用文本颜色填充 */
+}
+```
+
+**这就是为什么 `text-red-500` 能改图标颜色**——`currentColor` 跟随文本色变化，相当于换了一种喷漆颜色。
+
+> 对于彩色图标（如 Emoji），插件会自动切换为 `background-image` 模式，直接展示原始 SVG 颜色。不过主流图标集（MDI、Lucide、Tabler）都是单色的，全部走 mask 模式。
+
+## 插件怎么判断用哪种模式？
+
+判断逻辑在 `@iconify/utils` 的源码中，核心就一行：
+
+```js
+const mode = options.mode || (
+  options.color || !body.includes("currentColor")
+    ? "background"
+    : "mask"
+);
+```
+
+翻译成人话：
+
+| 条件 | 模式 | 原因 |
+|------|------|------|
+| SVG 中有 `currentColor` | **mask** | 单色图标，用遮罩实现可变色 |
+| SVG 中没有 `currentColor` | **background** | 彩色图标，直接展示原始颜色 |
+
+## 浏览器里实际长什么样？
+
+在 DevTools 里看，一个图标就是一个普通的 `<span>`：
+
+```html
+<span class="icon-[mdi--github] size-5"></span>
+```
+
+浏览器计算后的样式：
+
+```css
+display: inline-block;
+width: 1em;
+height: 1em;
+background-color: currentColor;
+mask-image: url("data:image/svg+xml,%3Csvg ...");
+mask-size: 100% 100%;
+```
+
+没有 JS、没有 Shadow DOM、没有额外请求——就是纯粹的 CSS。
+
+## 性能与方案对比
+
+先看优势：
+
+| 方面 | 说明 |
+|------|------|
+| 零运行时 JS | 纯 CSS，不加载任何 JavaScript |
+| 按需生成 | 只有用到的图标才进入 CSS，天然 tree-shaking |
+| 无网络请求 | SVG 内联在 CSS 的 Data URI 中 |
+| 缓存友好 | 图标随 CSS 文件一起被浏览器缓存 |
+| GPU 渲染 | `mask-image` 由浏览器原生 GPU 加速 |
+
+再和其他方案横向对比：
+
+| 方案 | 运行时 JS | 网络请求 | 可变色 | 体积控制 |
+|------|----------|---------|--------|---------|
+| **@iconify/tailwind4** | 无 | 无 | 支持 | 按需生成 |
+| @iconify/react | 有 | 无 | 支持 | 按需导入 |
+| SVG sprite | 无 | 1 次 | 支持 | 需手动管理 |
+| Icon font | 无 | 1 次 | 仅单色 | 全量加载 |
+
+## 什么时候适合用？
+
+如果你的项目满足以下条件，`@iconify/tailwind4` 是一个很好的选择：
+
+- 使用 Tailwind CSS 4
+- 以单色图标为主
+- 追求零运行时开销
+- 希望图标和样式统一管理，一个类名搞定
+
+对于大量彩色图标或需要动画控制的场景，React 组件方案可能更合适。
+
+---
+
+选对工具，少写代码。希望这篇文章帮你理解了 CSS 图标方案背后的原理。
