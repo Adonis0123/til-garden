@@ -9,7 +9,8 @@
     "tabs": [
       {
         "tab": "Articles",
-        "groups": [
+        "pages": [
+          "introduction",
           {
             "group": "AI",
             "pages": [
