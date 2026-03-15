@@ -16,12 +16,6 @@
             "pages": [
               "ai/superpowers-workflow-guide"
             ]
-          },
-          {
-            "group": "Frontend",
-            "pages": [
-              "frontend/react-patterns"
-            ]
           }
         ]
       }
