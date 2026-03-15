@@ -1,0 +1,28 @@
+/* Move "On this page" TOC to the left side of content */
+#content-side-layout {
+  order: -1;
+  max-width: 12.5rem;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+#content-side-layout > div {
+  padding-left: 0;
+  width: 100%;
+}
+
+/* Expand content area, keep comfortable reading width */
+#content-area {
+  order: 0;
+  max-width: 55rem !important;
+  width: 100% !important;
+}
+
+/* Tighten the gap between TOC and content */
+.lg\:pl-16 {
+  padding-left: 1rem !important;
+}
+
+.gap-x-8 {
+  column-gap: 1rem !important;
+}
