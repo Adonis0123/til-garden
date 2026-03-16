@@ -581,11 +581,13 @@ brainstorming + writing-plans + writing-skills + verification-before-completion
 
 ## 六、进阶：Rex-CLI 的基础设施启示
 
-Superpowers 解决了"AI 该怎么做事"的纪律问题。但在实际使用中，还有一类问题它解决不了——**基础设施问题**。Rex-CLI 项目在 Superpowers 纪律层之上，构建了一套完整的基础设施，值得学习借鉴。
+> [Rex-CLI](https://github.com/rexleimo/rex-cli) 是一个开源的 AI 开发辅助工具。
 
-### 两者的关系
+**一句话理解两者的关系：** Superpowers 是一套"规矩"——告诉 AI 该怎么做事（先写测试、先做设计、完成前要验证）；Rex-CLI 是一套"配套工具箱"——帮你把这些规矩落地，还额外提供了记忆存储、多 Agent 编排、成本追踪等 Superpowers 管不了的基础设施能力。
 
-它们不是竞品，而是**层叠关系**：
+打个比方：Superpowers 像驾校教材（教你怎么开车），Rex-CLI 像一辆装好了导航、行车记录仪、油耗仪表的车——教材的规矩内置在车里，但车还额外提供了教材覆盖不到的工具。
+
+更技术化的类比：
 
 | | 定位 | 类比 |
 |---|---|---|
