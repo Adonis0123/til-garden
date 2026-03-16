@@ -19,6 +19,7 @@
           {
             "group": "AI",
             "pages": [
+              "ai/levels-of-agentic-engineering",
               "ai/superpowers-workflow-guide"
             ]
           },
