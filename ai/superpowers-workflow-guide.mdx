@@ -1,6 +1,8 @@
 ---
 title: AI 辅助开发的工程化之路：Superpowers Skills 全生命周期实战指南
-description: 系统梳理 Superpowers 的 14 个 Skill，覆盖从创意到交付的完整软件生命周期
+description: >-
+  系统梳理 Superpowers 的 14 个 Skill，覆盖从创意到交付的完整软件生命周期，对照 OpenAI Harness Engineering
+  提炼技术领导可用的 8 条经验
 ---
 
 > AI 写代码很快，但"写得快"不等于"做得对"。本文系统梳理 [Superpowers](https://github.com/obra/superpowers) 的 14 个 Skill，覆盖从创意到交付的完整软件生命周期，并从 Rex-CLI 项目中提炼出值得借鉴的基础设施设计模式。
@@ -743,7 +745,87 @@ Agent 间用 JSON Schema 定义通信契约，比自由文本可靠。包含 sta
 
 ---
 
-## 八、总结
+## 八、对照阅读：OpenAI 的 Harness Engineering
+
+> 2026 年 2 月，OpenAI 工程师 Ryan Lopopolo 发表了 [Harness Engineering](https://openai.com/index/harness-engineering/)，记录了一个内部实验：3 人团队用 5 个月、0 行手写代码，完全由 Codex Agent 生成了约 100 万行代码的生产级产品。人均日产 3.5 个 PR，估算效率是纯手写的 10 倍。
+
+### 理念对比：殊途同归
+
+两个项目的核心信念惊人地一致——**AI 写代码的瓶颈不是能力，而是纪律和环境**。
+
+| 共识 | Superpowers 怎么做 | Harness Engineering 怎么做 |
+|------|-------------------|--------------------------|
+| 不能跳过设计直接写代码 | `brainstorming` + `writing-plans` 强制设计→计划 | 设计文档 + 执行计划作为一等公民签入仓库 |
+| 必须有验证才能声称完成 | `verification-before-completion` 门禁 | CI linter + 结构化测试 + Agent 自驱动 UI 验证 |
+| 架构约束要机械化执行 | Skill 规则写在 SKILL.md 里，1% Rule 强制加载 | 自定义 linter 强制分层依赖方向，违反即 CI 红灯 |
+| 上下文不能一股脑倒给 AI | Skill 按需加载（渐进式披露） | AGENTS.md 只当目录，指向 `docs/` 深层文档 |
+| 代码审查不能走过场 | `spec-reviewer` + `code-quality-reviewer` 双阶段 | Agent-to-Agent 审查循环，直到所有审查者满意 |
+| 技术债要持续清理 | `receiving-code-review` 的 YAGNI 检查 | "垃圾回收"机制：后台 Agent 定期扫描偏差，开修复 PR |
+
+### 关键差异：作用层面不同
+
+一句话：**Superpowers 管 Agent 的行为，Harness Engineering 管 Agent 的环境。**
+
+```
+Superpowers（个人/团队层）
+  "Agent 写代码时应该遵守什么规矩"
+  → Skill = 行为规则，注入 Agent 的 prompt
+
+Harness Engineering（组织/基础设施层）
+  "仓库应该长什么样，Agent 才能可靠工作"
+  → 架构约束 + 可观测性 + CI 门禁 + 知识库结构
+```
+
+| 维度 | Superpowers | Harness Engineering |
+|------|------------|-------------------|
+| 作用对象 | Agent 的行为（prompt 层） | Agent 的环境（仓库 + 工具链） |
+| 人写不写代码 | 人和 AI 协作写 | 0 行手写，人只设计环境 |
+| 典型用户 | 独立开发者 / 小团队 | 有基础设施投入能力的工程团队 |
+| 质量保障 | Skill 规则 + 子代理审查 | 自定义 linter + CI + Agent 自测 UI |
+| 上下文管理 | Skill 渐进加载 | 仓库即知识库 + 文档园丁 Agent |
+| 可观测性 | 无（靠人看输出） | 完整本地可观测栈（日志 / 指标 / 链路追踪） |
+
+**两者不冲突，反而互补。** Superpowers 的 Skill 可以作为 Harness Engineering 环境中的行为层——在一个架构严格、可观测性完备的仓库里，Agent 同时遵守 TDD、根因分析、验证门禁等行为纪律，效果叠加。
+
+### 给技术领导的 8 条经验
+
+以下经验综合了两个项目的实践，适用于任何正在引入 AI 辅助开发的团队。
+
+**1. 工程师的角色正在从"写代码"变成"设计环境"**
+
+OpenAI 的团队发现，早期进展慢不是因为 Codex 能力不够，而是环境"欠规格"——Agent 缺少工具、抽象和结构来完成高层目标。Superpowers 的 `brainstorming` 和 `writing-plans` 解决的是同一个问题：AI 不是不能做，是不知道该做什么。**技术领导要投资的不是更强的模型，而是更好的脚手架。**
+
+**2. 仓库就是知识库——不在仓库里的知识对 Agent 不存在**
+
+OpenAI 的原话："What Codex can't see doesn't exist." Slack 里对齐的架构决策、口头传达的产品原则、人脑里的隐式知识——Agent 一概看不到。**推动团队把决策写进仓库**（设计文档、ADR、执行计划），而不是停留在聊天记录里。这对人类新成员同样有益。
+
+**3. 给 AI 一张地图，而不是一本千页手册**
+
+OpenAI 试过把所有指令塞进一个大 AGENTS.md，失败了——上下文是稀缺资源，塞太多反而让 Agent 抓不住重点。Superpowers 的 `using-superpowers` 用 1% Rule 按需加载 Skill，而不是一次全部注入。**控制信息密度，用渐进式披露替代信息轰炸。**
+
+**4. 架构约束要尽早建立，而且必须机械化执行**
+
+OpenAI 在项目第一天就建立了严格的分层依赖规则（Types → Config → Repo → Service → Runtime → UI），用自定义 linter 强制执行。通常你会觉得"等团队到几百人再搞架构治理"，但在 Agent 时代，**架构约束是速度的前提，不是速度的代价**。没有约束的 Agent 会以 10 倍速度制造技术债。
+
+**5. 纠错成本低的时候，合并哲学要变**
+
+当 Agent 吞吐量远超人类审查能力时，OpenAI 选择了最小化阻塞式合并门禁——PR 短命、测试 flake 用 follow-up 修复而不是无限阻塞。**在低吞吐环境下这很危险，但在高吞吐环境下，等待比纠错更贵。** 技术领导需要根据团队的实际 Agent 吞吐量重新校准合并策略。
+
+**6. AI 代码的技术债需要"垃圾回收"机制**
+
+Agent 会复制仓库中已有的模式——包括不好的模式。OpenAI 的团队曾经每周五花 20% 时间手动清理"AI slop"，后来改为自动化：编码"黄金原则"，让后台 Agent 定期扫描偏差并开修复 PR。**不要指望 Agent 不制造技术债，要建立持续清理的机制。**
+
+**7. "无聊"的技术选型对 Agent 更友好**
+
+OpenAI 发现，API 稳定、可组合、训练集覆盖充分的"无聊"技术，比新潮但 Agent 难以推理的技术更有效。他们甚至会让 Agent 重新实现一个功能子集，而不是依赖行为不透明的第三方库。**技术选型时增加一个评估维度：Agent 能不能理解和可靠使用这个工具？**
+
+**8. 从纪律层开始，不要试图一步到位**
+
+Superpowers 的渐进式路径（3 个 Skill → 14 个 Skill，4 周计划）和 OpenAI 的深度优先方法（先建最小构建块，再解锁复杂任务）传达同一个信息：**不要试图一步建成完整的 AI 工程化体系。** 先装 TDD + 验证 + 调试三个纪律，就能解决 80% 的 AI 翻车问题。基础设施层（可观测性、自动审查、知识库结构）在团队积累经验后再逐步叠加。
+
+---
+
+## 九、总结
 
 **Superpowers 的本质**不是让 AI 做更多事，而是让 AI **做对事**。14 个 Skill 覆盖了从创意到交付的完整生命周期，核心建立在三个基石上：
 

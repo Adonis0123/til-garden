@@ -27,6 +27,7 @@ mintlify dev
 │   └── superpowers-workflow-guide.mdx
 ├── frontend/
 │   └── iconify-tailwind4.mdx
+├── .mintignore
 ├── custom.css
 ├── docs.json
 ├── favicon.ico
