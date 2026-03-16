@@ -27,6 +27,12 @@
             "pages": [
               "frontend/iconify-tailwind4"
             ]
+          },
+          {
+            "group": "Tools",
+            "pages": [
+              "tools/iterm2-zsh-cheatsheet"
+            ]
           }
         ]
       }

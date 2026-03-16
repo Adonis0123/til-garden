@@ -27,6 +27,8 @@ mintlify dev
 │   └── superpowers-workflow-guide.mdx
 ├── frontend/
 │   └── iconify-tailwind4.mdx
+├── tools/
+│   └── iterm2-zsh-cheatsheet.mdx
 ├── .mintignore
 ├── custom.css
 ├── docs.json
