@@ -4,7 +4,7 @@ Adonis 的数字花园 — 记录每天学到的小知识。
 
 ## 在线访问
 
-👉 [https://adonis-til.mintlify.app/introduction](https://adonis-til.mintlify.app/introduction)
+[https://adonis-til.mintlify.app/introduction](https://adonis-til.mintlify.app/introduction)
 
 ## 技术栈
 
@@ -23,8 +23,13 @@ mintlify dev
 ## 目录结构
 
 ```
-├── ai/          # AI 相关文章
-├── frontend/    # 前端相关文章
-├── docs.json    # Mintlify 配置（导航、主题等）
-└── introduction.mdx  # 首页
+├── ai/
+│   └── superpowers-workflow-guide.mdx
+├── frontend/
+│   └── iconify-tailwind4.mdx
+├── custom.css
+├── docs.json
+├── favicon.ico
+├── introduction.mdx
+└── logo.png
 ```
