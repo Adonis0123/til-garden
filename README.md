@@ -28,6 +28,7 @@ mintlify dev
 ├── frontend/
 │   └── iconify-tailwind4.mdx
 ├── tools/
+│   ├── git-cheatsheet.mdx
 │   └── iterm2-zsh-cheatsheet.mdx
 ├── .mintignore
 ├── custom.css

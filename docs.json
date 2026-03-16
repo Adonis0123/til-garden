@@ -31,6 +31,7 @@
           {
             "group": "Tools",
             "pages": [
+              "tools/git-cheatsheet",
               "tools/iterm2-zsh-cheatsheet"
             ]
           }
