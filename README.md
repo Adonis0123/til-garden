@@ -31,7 +31,8 @@ mintlify dev
 ├── tools/
 │   ├── claude-code-hidden-commands.mdx
 │   ├── git-cheatsheet.mdx
-│   └── iterm2-zsh-cheatsheet.mdx
+│   ├── iterm2-zsh-cheatsheet.mdx
+│   └── zoxide-smarter-cd.mdx
 ├── .mintignore
 ├── custom.css
 ├── docs.json

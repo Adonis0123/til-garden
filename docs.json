@@ -34,7 +34,8 @@
             "pages": [
               "tools/claude-code-hidden-commands",
               "tools/git-cheatsheet",
-              "tools/iterm2-zsh-cheatsheet"
+              "tools/iterm2-zsh-cheatsheet",
+              "tools/zoxide-smarter-cd"
             ]
           }
         ]

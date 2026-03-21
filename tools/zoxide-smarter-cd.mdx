@@ -1,0 +1,140 @@
+---
+title: zoxide：比 cd 更聪明的目录跳转工具
+description: zoxide 通过 frecency 算法记住你的目录访问习惯，用关键词即可秒跳到任意深层目录，告别重复输入长路径
+---
+
+> 项目地址：[ajeetdsouza/zoxide](https://github.com/ajeetdsouza/zoxide)
+
+---
+
+## 背景
+
+日常开发中，我们经常在各种深层目录之间反复跳转：
+
+```bash
+cd ~/coding/monorepo/packages/shared-utils/src
+cd ~/duiyun/toki-ai/apps/web/src/components
+```
+
+路径太长、记不住、敲得慢。`autojump` 和 `z.sh` 是早期的解决方案，而 **zoxide** 是它们的现代替代品 — 用 Rust 编写，更快、更智能。
+
+---
+
+## 一、安装
+
+```bash
+# macOS (Homebrew)
+brew install zoxide
+
+# 可选：安装 fzf 以支持交互式搜索（zi 命令需要）
+brew install fzf
+```
+
+---
+
+## 二、配置 Zsh
+
+在 `~/.zshrc` 末尾（`compinit` 之后）添加：
+
+```bash
+eval "$(zoxide init zsh)"
+```
+
+重新加载配置：
+
+```bash
+source ~/.zshrc
+```
+
+> **注意**：如果补全不生效，可以执行 `rm ~/.zcompdump*; compinit` 重建缓存。
+
+---
+
+## 三、核心命令
+
+### `z` — 智能跳转
+
+| 命令 | 效果 |
+|------|------|
+| `z foo` | 跳转到排名最高的匹配 "foo" 的目录 |
+| `z foo bar` | 匹配同时包含 "foo" 和 "bar" 的目录 |
+| `z foo /` | 跳转到以 "foo" 开头的子目录 |
+| `z -` | 回到上一个目录（等同 `cd -`） |
+| `z` | 回到 Home 目录 |
+
+**实际使用示例**：
+
+```bash
+# 假设你经常访问 ~/coding/monorepo/packages/shared-utils
+z shared        # 一个词直达
+z mono utils    # 多关键词精确匹配
+```
+
+### `zi` — 交互式搜索
+
+当多个目录匹配时，`zi` 会弹出 `fzf` 界面供你选择：
+
+```bash
+zi          # 从所有已记录目录中搜索
+zi src      # 从匹配 "src" 的目录中选择
+```
+
+### 数据库管理
+
+| 命令 | 用途 |
+|------|------|
+| `zoxide add <path>` | 手动添加目录到数据库 |
+| `zoxide remove <path>` | 从数据库删除目录 |
+| `zoxide query <keyword>` | 查询匹配的目录及其排名 |
+| `zoxide query -ls` | 列出所有已记录目录及分数 |
+
+---
+
+## 四、Frecency 排名算法
+
+zoxide 不是简单地按访问次数排序，而是用 **frecency**（frequency + recency）算法——同时考虑访问频率和时间距离：
+
+| 最近访问时间 | 排名乘数 |
+|-------------|----------|
+| 1 小时内 | × 4.0 |
+| 1 天内 | × 2.0 |
+| 1 周内 | × 0.5 |
+| 超过 1 周 | × 0.25 |
+
+这意味着：**最近常去的目录权重最高，长期不访问的会自然衰减**。
+
+数据库还有老化机制（`_ZO_MAXAGE` 默认 10,000），会自动清理低排名条目，不用担心数据膨胀。
+
+---
+
+## 五、从其他工具迁移
+
+如果之前用过 `autojump`、`z.sh` 或 `fasd`，可以导入历史数据：
+
+```bash
+# 从 autojump 迁移
+zoxide import --from autojump
+
+# 从 z.sh 迁移
+zoxide import --from z
+```
+
+---
+
+## 六、对比
+
+| 特性 | `cd` | `autojump` | `z.sh` | **zoxide** |
+|------|------|-----------|--------|-----------|
+| 需要完整路径 | ✅ | ❌ | ❌ | ❌ |
+| 学习访问习惯 | ❌ | ✅ | ✅ | ✅ |
+| Frecency 算法 | ❌ | ❌ | 部分 | ✅ |
+| 交互式搜索 | ❌ | ❌ | ❌ | ✅（fzf） |
+| 跨 Shell 支持 | — | ✅ | Bash/Zsh | ✅ 全平台 |
+| 性能 | — | Python | Shell | **Rust** |
+
+---
+
+## 延伸资源
+
+- [zoxide GitHub](https://github.com/ajeetdsouza/zoxide)
+- [fzf — 模糊搜索工具](https://github.com/junegunn/fzf)
