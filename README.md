@@ -29,6 +29,7 @@ mintlify dev
 ├── frontend/
 │   └── iconify-tailwind4.mdx
 ├── tools/
+│   ├── claude-code-hidden-commands.mdx
 │   ├── git-cheatsheet.mdx
 │   └── iterm2-zsh-cheatsheet.mdx
 ├── .mintignore
