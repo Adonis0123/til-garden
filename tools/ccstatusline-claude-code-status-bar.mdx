@@ -1,0 +1,126 @@
+---
+title: ccstatusline：给 Claude Code 打造你自己的终端状态栏
+description: >-
+  ccstatusline 是一个高度可定制的 Claude Code 状态栏工具，支持 Powerline 风格、多行显示、自定义组件，通过交互式 TUI
+  零代码配置
+---
+
+> 项目地址：[sirmalloc/ccstatusline](https://github.com/sirmalloc/ccstatusline) | MIT License
+
+---
+
+## ccstatusline 是什么
+
+ccstatusline 是一个专为 Claude Code CLI 设计的**终端状态栏格式化工具**。它能在你使用 Claude Code 时，实时显示模型信息、Git 分支、Token 用量、会话时长等关键指标——全部在终端底部的状态栏里，一目了然。
+
+核心亮点：
+
+- **完全可定制**：选择显示哪些信息，自定义每个元素的颜色
+- **Powerline 风格**：支持箭头分隔符、圆角端帽等 Powerline 样式渲染
+- **最多 3 行状态栏**：信息再多也不怕挤
+- **交互式 TUI 配置器**：不用手写 JSON，可视化调整一切
+- **零配置即可用**：开箱即有合理的默认值
+
+---
+
+## 安装
+
+不需要全局安装，直接用 `npx` 或 `bunx` 运行：
+
+```bash
+# npm
+npx ccstatusline@latest
+
+# Bun（更快）
+bunx ccstatusline@latest
+```
+
+如果偏好全局安装：
+
+```bash
+npm install -g ccstatusline
+# 或
+bun install -g ccstatusline
+```
+
+运行后会自动启动交互式 TUI 配置界面。
+
+---
+
+## 配置流程
+
+### 1. 启动 TUI
+
+直接运行 `npx ccstatusline@latest`，进入基于 React/Ink 的交互式界面，你可以：
+
+- 添加、移除、排列状态栏组件（Widget）
+- 自定义每个元素的前景色和背景色
+- 配置 Flex 分隔符的行为
+- 编辑自定义文本内容
+- **一键安装/卸载** Claude Code 集成
+- 实时预览状态栏效果
+
+### 2. Claude Code 集成
+
+TUI 中选择"Install"后，ccstatusline 会自动修改 `~/.claude/settings.json`，将自己注册为 Claude Code 的状态栏命令，并把 `padding` 设为 `0` 避免重复填充。
+
+### 3. 配置文件
+
+所有设置自动保存到 `~/.config/ccstatusline/settings.json`。
+
+---
+
+## 内置组件（Widgets）
+
+| 组件 | 说明 |
+|---|---|
+| **Model Name** | 当前使用的 Claude 模型名称 |
+| **Git Branch** | 当前 Git 分支 |
+| **Git Changes** | 未提交的插入/删除行数 |
+| **Session Clock** | 会话已持续时间 |
+| **Block Timer** | Claude Code 5 小时对话块的进度（支持时间和进度条两种模式） |
+| **Token Metrics** | 输入/输出/缓存/总 Token 数、上下文长度及占比 |
+| **Custom Text** | 自定义静态文本 |
+| **Custom Command** | 执行 shell 命令并动态显示输出（stdin 接收完整 JSON 数据） |
+
+其中 **Custom Command** 特别强大——它能接收 Claude Code 传来的完整 JSON 数据，可以和 `ccusage` 等外部工具联动。
+
+---
+
+## 全局选项
+
+| 选项 | 说明 |
+|---|---|
+| Default Padding | 统一的元素间距 |
+| Default Separator | 统一的分隔符 |
+| Inherit Colors | 分隔符继承前一个 Widget 的颜色 |
+| Global Bold | 全局加粗 |
+| Override FG/BG Color | 强制所有元素使用指定颜色 |
+
+### 终端宽度策略
+
+- **Full width always**：始终使用终端全宽
+- **Full width minus 40**：预留 40 字符给 auto-compact 消息
+- **Full width until compact**：根据上下文占比阈值动态切换
+
+---
+
+## 工作原理
+
+ccstatusline 通过检测 `stdin` 是否为 TTY 来决定运行模式：
+
+- **非 TTY**（被 Claude Code 调用时）→ **渲染模式**：读取 Claude Code 传入的 JSON，结合 JSONL 会话日志计算指标，输出格式化的状态栏
+- **TTY**（直接在终端运行时）→ **配置模式**：启动交互式 TUI
+
+---
+
+## 适合谁
+
+如果你是 Claude Code 重度用户，想要：
+
+- 随时掌握 Token 消耗和上下文占比
+- 一眼看到当前模型、Git 状态
+- 追踪 5 小时对话块的剩余时间
+- 让终端看起来更 Pro（Powerline 风格）
+
+那 ccstatusline 值得一试。

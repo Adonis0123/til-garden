@@ -1,0 +1,235 @@
+---
+title: gstack：把 Claude Code 变成虚拟工程团队的日常使用指南
+description: >-
+  Garry Tan（YC CEO）开源的 Claude Code 技能集 gstack 日常使用指南，涵盖安装、sprint 工作流、15 个角色命令、6
+  个辅助工具及并行开发实践
+---
+
+> 项目地址：[garrytan/gstack](https://github.com/garrytan/gstack) | MIT License
+
+---
+
+## gstack 是什么
+
+gstack 是 Y Combinator CEO [Garry Tan](https://x.com/garrytan) 开源的 Claude Code 技能集。它的核心理念是：**把 Claude Code 从一个通用 Agent 变成一支你可以管理的虚拟工程团队**——CEO 重新定义产品、架构师锁定技术方案、设计师拦截 AI 粗制滥造、资深工程师找生产级 Bug、QA 打开真实浏览器点击测试、发版工程师推 PR。
+
+15 个专业角色 + 6 个辅助工具，全是斜杠命令，全是 Markdown，全部免费。
+
+Garry Tan 声称自己在用 gstack 的过程中，60 天内写了超过 60 万行生产代码，日均 1-2 万行可用代码——同时还在做 YC CEO 的本职工作。
+
+---
+
+## 安装（30 秒）
+
+**前提**：已安装 [Claude Code](https://docs.anthropic.com/en/docs/claude-code)、[Git](https://git-scm.com/)、[Bun](https://bun.sh/) v1.0+
+
+打开 Claude Code，粘贴以下命令让 Claude 完成剩余工作：
+
+```bash
+git clone https://github.com/garrytan/gstack.git ~/.claude/skills/gstack \
+  && cd ~/.claude/skills/gstack \
+  && ./setup
+```
+
+安装后需要在 `CLAUDE.md` 中添加 gstack 配置段，告诉 Claude 可用的技能列表。详见 [README](https://github.com/garrytan/gstack#install--takes-30-seconds)。
+
+**团队共享**（可选）：将 gstack 复制到项目的 `.claude/skills/gstack` 目录并提交，队友 `git clone` 即可直接使用。
+
+**其他 Agent**：也支持 Codex、Gemini CLI、Cursor 等，使用 `./setup --host auto` 自动检测。
+
+---
+
+## 核心工作流：一个 Sprint 的完整流程
+
+gstack 不是零散工具的集合，而是一套**有序的 sprint 流程**。每个技能都衔接上下游：
+
+```
+Think → Plan → Build → Review → Test → Ship → Reflect
+```
+
+### 1. Think — 想清楚再动手
+
+```
+/office-hours
+```
+
+从这里开始。你描述要做的东西，gstack 不会直接开干，而是：
+- 用 6 个直击灵魂的问题**重新定义你的需求**
+- 挑战你的前提假设（"你说的是日历 App，但你真正在做的是 AI 私人秘书"）
+- 生成 3 种实现路径并附带工作量评估
+- 输出一份设计文档，自动流入后续所有技能
+
+### 2. Plan — 锁定方案
+
+```
+/plan-ceo-review      # CEO 视角：产品层面审视，找到隐藏的十倍产品
+/plan-eng-review      # 架构师视角：数据流、状态机、边界情况、测试矩阵
+/plan-design-review   # 设计师视角：逐维度打分 0-10，指明 10 分长什么样
+```
+
+三个角色分别从产品、技术、设计维度审查计划。`/plan-ceo-review` 有四种模式：扩张、选择性扩张、保持范围、缩减——帮你校准需求的粒度。
+
+### 3. Build — 写代码
+
+审批计划后，退出 Plan 模式，Claude 开始实现。gstack 的价值在于：前面的设计文档、测试矩阵、架构决策都已经在上下文里了，Agent 不是从零开始盲写。
+
+### 4. Review — 代码审查
+
+```
+/review
+```
+
+模拟资深工程师审查：
+- **自动修复**明显问题（import 缺失、类型错误等）
+- **标记**需要人工判断的问题（竞态条件、架构决策等）
+- 检查完整性缺口（缺少错误处理、边界条件等）
+
+想要跨模型二次审查：
+
+```
+/codex
+```
+
+调用 OpenAI Codex CLI 做独立审查。当 `/review`（Claude）和 `/codex`（OpenAI）都审查过同一个分支时，会生成跨模型分析报告。
+
+### 5. Test — QA 测试
+
+```
+/qa https://staging.myapp.com
+```
+
+打开**真实的 Chromium 浏览器**，像真人一样点击测试你的应用：
+- 发现 Bug → 自动修复 → 生成回归测试 → 验证修复
+- 遇到验证码/MFA？`$B handoff` 交给你手动处理，完事后 `$B resume` 继续
+
+只想要报告不要改代码：
+
+```
+/qa-only
+```
+
+### 6. Ship — 发版
+
+```
+/ship
+```
+
+一个命令完成：同步 main → 跑测试 → 审计覆盖率 → 推代码 → 开 PR → 自动调用 `/document-release` 更新文档。
+
+如果项目没有测试框架，`/ship` 会从零搭建一个。
+
+### 7. Reflect — 复盘
+
+```
+/retro
+```
+
+生成团队级周报：逐人拆解贡献、shipping 连击记录、测试健康趋势、成长方向建议。
+
+---
+
+## 15 个角色速查
+
+| 技能 | 角色 | 职责 |
+|------|------|------|
+| `/office-hours` | YC 导师 | 6 个问题重新定义需求，输出设计文档 |
+| `/plan-ceo-review` | CEO | 产品层面审视，4 种范围模式 |
+| `/plan-eng-review` | 架构师 | 数据流图、状态机、边界分析、测试矩阵 |
+| `/plan-design-review` | 资深设计师 | 逐维度打分 0-10，AI Slop 检测 |
+| `/design-consultation` | 设计合伙人 | 从零构建设计系统，生成产品 mockup |
+| `/review` | Staff 工程师 | 自动修复 + 标记生产级 Bug |
+| `/investigate` | 调试专家 | 系统化根因分析，3 次失败后停止 |
+| `/design-review` | 能写代码的设计师 | 审计 + 修复，原子提交 + 前后截图 |
+| `/qa` | QA 负责人 | 真实浏览器测试，自动修复 + 回归测试 |
+| `/qa-only` | QA 报告员 | 同 /qa 但只报告不改代码 |
+| `/ship` | 发版工程师 | 测试 → 覆盖率 → PR → 文档一条龙 |
+| `/document-release` | 技术写作 | 自动更新所有漂移的文档 |
+| `/retro` | 工程经理 | 团队周报 + 趋势分析 |
+| `/browse` | QA 工程师 | 真实 Chromium 浏览器操作，~100ms/命令 |
+| `/setup-browser-cookies` | 会话管理 | 导入 Chrome/Arc/Brave/Edge cookies |
+
+---
+
+## 6 个辅助工具
+
+| 工具 | 功能 |
+|------|------|
+| `/codex` | 调用 OpenAI Codex 做独立代码审查，支持对抗模式 |
+| `/careful` | 在破坏性命令前警告（rm -rf、DROP TABLE、force-push） |
+| `/freeze` | 锁定编辑范围到指定目录，防止调试时误改其他代码 |
+| `/guard` | `/careful` + `/freeze` 一键全开，生产环境操作推荐 |
+| `/unfreeze` | 解除 `/freeze` 锁定 |
+| `/gstack-upgrade` | 自动升级 gstack 到最新版 |
+
+---
+
+## 日常高频场景
+
+### 场景一：从零开始一个新功能
+
+```
+→ /office-hours          # 描述需求，接受灵魂拷问
+→ /plan-ceo-review       # 产品层面确认范围
+→ /plan-eng-review       # 技术方案锁定
+→ 批准计划，退出 Plan 模式  # Claude 开始写代码
+→ /review                # 代码审查
+→ /qa http://localhost:3000  # 真实浏览器测试
+→ /ship                  # 一键发版
+```
+
+整个流程约 30 分钟。
+
+### 场景二：Review 别人的 PR
+
+```
+→ /review                # 自动分析 diff，标记问题
+→ /codex                 # 跨模型二次审查
+```
+
+两个不同的 AI 模型交叉审查，重叠的发现更可信，独有的发现值得额外关注。
+
+### 场景三：线上 Bug 调试
+
+```
+→ /investigate           # 系统化根因分析（自动 freeze 到相关模块）
+→ /qa http://staging.com # 验证修复
+→ /ship                  # 发版
+```
+
+`/investigate` 的铁律：**不做调查就不动代码**。它会追踪数据流、测试假设，连续 3 次修复失败后主动停止，避免盲目瞎改。
+
+### 场景四：生产环境谨慎操作
+
+```
+→ /guard                 # 开启安全防护（careful + freeze）
+→ 正常操作...
+→ /unfreeze              # 解除锁定
+```
+
+---
+
+## 并行开发：10-15 个 Sprint 同时跑
+
+gstack 的 sprint 结构让并行成为可能。没有流程的话，10 个 Agent 就是 10 个混乱源；有了流程，每个 Agent 都知道该做什么、什么时候停下。
+
+推荐配合 [Conductor](https://conductor.build) 使用——它可以在隔离的工作区中并行运行多个 Claude Code 会话：
+
+- 会话 A：`/office-hours` 讨论新想法
+- 会话 B：`/review` 审查 PR
+- 会话 C：实现功能
+- 会话 D：`/qa` 测试 staging
+- 会话 E-O：各自在不同分支上跑
+
+你像 CEO 管理团队一样管理它们：**只关注需要决策的节点，其余放手让它们跑**。
+
+---
+
+## 常见问题
+
+| 问题 | 解决方案 |
+|------|---------|
+| 技能没有出现 | `cd ~/.claude/skills/gstack && ./setup` |
+| `/browse` 失败 | `cd ~/.claude/skills/gstack && bun install && bun run build` |
+| 版本过旧 | `/gstack-upgrade` 或在 `~/.gstack/config.yaml` 设置 `auto_upgrade: true` |
+| Claude 看不到技能 | 检查 `CLAUDE.md` 是否有 gstack 配置段 |
+| Windows 用户 | 需要 Git Bash 或 WSL，且 PATH 中同时有 `bun` 和 `node` |

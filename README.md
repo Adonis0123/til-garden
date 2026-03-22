@@ -29,8 +29,10 @@ mintlify dev
 ├── frontend/
 │   └── iconify-tailwind4.mdx
 ├── tools/
+│   ├── ccstatusline-claude-code-status-bar.mdx
 │   ├── claude-code-hidden-commands.mdx
 │   ├── git-cheatsheet.mdx
+│   ├── gstack-daily-usage.mdx
 │   ├── iterm2-zsh-cheatsheet.mdx
 │   └── zoxide-smarter-cd.mdx
 ├── .mintignore

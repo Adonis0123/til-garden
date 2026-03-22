@@ -32,8 +32,10 @@
           {
             "group": "Tools",
             "pages": [
+              "tools/ccstatusline-claude-code-status-bar",
               "tools/claude-code-hidden-commands",
               "tools/git-cheatsheet",
+              "tools/gstack-daily-usage",
               "tools/iterm2-zsh-cheatsheet",
               "tools/zoxide-smarter-cd"
             ]
