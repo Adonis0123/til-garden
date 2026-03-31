@@ -1,0 +1,290 @@
+---
+title: Codex Plugin for Claude Code：在 Claude Code 中直接使用 OpenAI Codex
+description: 详解 codex-plugin-cc 的安装配置和六大核心命令，涵盖代码审查、对抗性评审、任务委派、后台作业管理等完整工作流
+---
+
+> 仓库：[openai/codex-plugin-cc](https://github.com/openai/codex-plugin-cc) | License: Apache-2.0
+
+---
+
+## 这是什么
+
+`codex-plugin-cc` 是 OpenAI 官方提供的 Claude Code 插件，让你在 Claude Code 中直接调用 Codex 进行代码审查或委派编码任务。简单说——**用竞品帮你干活，两个 AI 协作**。
+
+你能获得：
+
+- `/codex:review` — 标准代码审查
+- `/codex:adversarial-review` — 可定向的对抗性评审（挑战你的设计决策）
+- `/codex:rescue` — 将任务委派给 Codex 执行
+- `/codex:status` / `/codex:result` / `/codex:cancel` — 后台作业管理
+
+---
+
+## 前置条件
+
+| 条件 | 说明 |
+|------|------|
+| ChatGPT 订阅（含免费版）或 OpenAI API Key | 使用量计入 Codex 用量限额 |
+| Node.js ≥ 18.18 | 插件运行环境 |
+| Claude Code CLI | 宿主环境 |
+
+---
+
+## 安装
+
+三步完成：
+
+```bash
+# 1. 添加 marketplace
+/plugin marketplace add openai/codex-plugin-cc
+
+# 2. 安装插件
+/plugin install codex@openai-codex
+
+# 3. 重载插件
+/reload-plugins
+```
+
+然后运行设置检查：
+
+```bash
+/codex:setup
+```
+
+`/codex:setup` 会检测 Codex CLI 是否就绪。如果没装过，它可以自动帮你安装。也可以手动装：
+
+```bash
+npm install -g @openai/codex
+```
+
+如果 Codex 已安装但没登录：
+
+```bash
+!codex login
+```
+
+安装成功后，你应该能看到上面列出的斜杠命令，以及 `/agents` 中出现 `codex:codex-rescue` 子代理。
+
+---
+
+## 核心命令详解
+
+### 1. `/codex:review` — 标准代码审查
+
+对当前工作进行 Codex 级别的代码审查，效果等同于在 Codex 内直接运行 `/review`。
+
+**适用场景**：
+
+- 审查当前未提交的修改
+- 审查当前分支与基准分支（如 `main`）的差异
+
+**用法**：
+
+```bash
+# 审查未提交的更改
+/codex:review
+
+# 审查当前分支相对于 main 的更改
+/codex:review --base main
+
+# 后台运行（推荐，多文件审查可能耗时较长）
+/codex:review --background
+```
+
+> 这是只读命令，不会修改任何代码。
+
+### 2. `/codex:adversarial-review` — 对抗性评审
+
+**可定向**的深度评审，专门质疑你的实现和设计决策。
+
+与 `/codex:review` 的区别：它不只看代码细节，而是挑战你的**方向选择**——架构取舍、隐含假设、替代方案、故障模式。
+
+**适用场景**：
+
+- 发布前压力测试：认证、数据丢失、回滚、竞态条件
+- 审视缓存策略、重试设计等架构决策
+- 需要一个"唱反调"的评审者
+
+**用法**：
+
+```bash
+# 基础对抗性评审
+/codex:adversarial-review
+
+# 指定基准分支 + 定向关注点
+/codex:adversarial-review --base main challenge whether this was the right caching and retry design
+
+# 后台运行 + 指定关注方向
+/codex:adversarial-review --background look for race conditions and question the chosen approach
+```
+
+> 只读命令。它只评审，不修复代码。
+
+### 3. `/codex:rescue` — 委派任务给 Codex
+
+将具体任务交给 Codex 通过 `codex:codex-rescue` 子代理执行。
+
+**适用场景**：
+
+- 调查 bug
+- 尝试修复
+- 继续上一次的 Codex 任务
+- 用更小/更快的模型跑一轮
+
+**用法**：
+
+```bash
+# 调查问题
+/codex:rescue investigate why the tests started failing
+
+# 尝试修复
+/codex:rescue fix the failing test with the smallest safe patch
+
+# 继续上次任务
+/codex:rescue --resume apply the top fix from the last run
+
+# 指定模型和 effort 级别
+/codex:rescue --model gpt-5.4-mini --effort medium investigate the flaky integration test
+
+# 用 spark 模型快速处理
+/codex:rescue --model spark fix the issue quickly
+
+# 后台运行
+/codex:rescue --background investigate the regression
+```
+
+你也可以用自然语言触发：
+
+```
+Ask Codex to redesign the database connection to be more resilient.
+```
+
+**参数说明**：
+
+| 参数 | 说明 |
+|------|------|
+| `--model` | 指定模型，`spark` 会映射到 `gpt-5.3-codex-spark` |
+| `--effort` | 推理 effort 级别 |
+| `--resume` | 继续最近的 Codex 任务 |
+| `--fresh` | 强制新建任务 |
+| `--background` | 后台运行 |
+| `--wait` | 等待完成后返回 |
+
+### 4. `/codex:status` — 查看作业状态
+
+```bash
+# 查看所有作业
+/codex:status
+
+# 查看指定作业
+/codex:status task-abc123
+```
+
+### 5. `/codex:result` — 查看作业结果
+
+```bash
+# 查看最近完成的作业结果
+/codex:result
+
+# 查看指定作业结果
+/codex:result task-abc123
+```
+
+返回结果中会包含 Codex session ID，你可以用 `codex resume <session-id>` 在 Codex 中直接恢复该会话。
+
+### 6. `/codex:cancel` — 取消作业
+
+```bash
+/codex:cancel
+/codex:cancel task-abc123
+```
+
+---
+
+## 实战工作流
+
+### 发布前审查
+
+```bash
+/codex:review --background
+/codex:status          # 过一会儿检查进度
+/codex:result          # 查看审查结果
+```
+
+### 委派调查任务
+
+```bash
+/codex:rescue --background investigate why the build is failing in CI
+/codex:status
+/codex:result
+```
+
+### 对抗性评审 + 修复循环
+
+```bash
+# 1. 先让 Codex 挑战你的设计
+/codex:adversarial-review --base main
+
+# 2. 根据反馈让 Codex 尝试修复
+/codex:rescue fix the issues raised in the review
+```
+
+---
+
+## 高级配置
+
+### Review Gate（审查门禁）
+
+启用后，插件会在 Claude 每次响应时自动触发 Codex 审查。如果发现问题，会阻止 Claude 继续，要求先解决。
+
+```bash
+# 启用
+/codex:setup --enable-review-gate
+
+# 禁用
+/codex:setup --disable-review-gate
+```
+
+> **注意**：审查门禁会创建持续的 Claude/Codex 循环，可能快速消耗用量配额。仅在主动监控会话时启用。
+
+### Codex 配置文件
+
+插件复用你本地 Codex CLI 的配置。可以在 `config.toml` 中自定义默认模型和 effort：
+
+```toml
+# ~/.codex/config.toml（全局）
+# 或 .codex/config.toml（项目级）
+
+model = "gpt-5.4-mini"
+model_reasoning_effort = "xhigh"
+```
+
+配置加载优先级：
+
+1. 用户级：`~/.codex/config.toml`
+2. 项目级：`.codex/config.toml`（需要项目已被信任）
+
+### 在 Codex 中继续工作
+
+任何通过插件委派的任务都可以在 Codex 中直接恢复：
+
+```bash
+# 用 /codex:result 获取 session ID，然后
+codex resume <session-id>
+```
+
+---
+
+## 常见问题
+
+**Q: 需要单独的 Codex 账号吗？**
+
+不需要。如果你已经在本机登录过 Codex，插件直接复用本地认证。如果从未用过 Codex，需要先用 `!codex login` 登录（支持 ChatGPT 账号或 API Key）。
+
+**Q: 插件有独立的 Codex 运行时吗？**
+
+没有。插件通过本地 Codex CLI 和 App Server 运作，共享同一套安装、认证和仓库环境。
+
+**Q: 已有的 Codex 配置会生效吗？**
+
+会。插件完整继承你的 Codex 配置，包括 `openai_base_url` 等自定义设置。

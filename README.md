@@ -32,6 +32,7 @@ mintlify dev
 ├── tools/
 │   ├── ccstatusline-claude-code-status-bar.mdx
 │   ├── claude-code-hidden-commands.mdx
+│   ├── codex-plugin-claude-code.mdx
 │   ├── git-cheatsheet.mdx
 │   ├── gstack-daily-usage.mdx
 │   ├── iterm2-zsh-cheatsheet.mdx

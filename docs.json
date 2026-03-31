@@ -35,6 +35,7 @@
             "pages": [
               "tools/ccstatusline-claude-code-status-bar",
               "tools/claude-code-hidden-commands",
+              "tools/codex-plugin-claude-code",
               "tools/git-cheatsheet",
               "tools/gstack-daily-usage",
               "tools/iterm2-zsh-cheatsheet",
