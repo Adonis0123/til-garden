@@ -1,0 +1,183 @@
+---
+title: Impeccable 快速入门：让 Claude Code 写出专业级前端 UI
+---
+
+# Impeccable 快速入门：让 Claude Code 写出专业级前端 UI
+
+## 它解决什么问题
+
+用 AI 生成的前端 UI 都长一个样 —— Inter 字体、紫色渐变、圆角卡片套卡片、灰色文字配彩色背景。这些 "AI 味" 设计源于 LLM 训练数据中的通用模板偏见。
+
+[Impeccable](https://github.com/pbakaus/impeccable) 是一个 Claude Code skill，通过 **1 个核心设计技能 + 20 个斜杠命令 + 一套反模式清单**，让 AI 生成有辨识度、可上线的前端界面。
+
+**核心理念：** 如果一个界面让人一眼看出 "这是 AI 做的"，那就有问题。好的界面应该让人问 "这怎么做的？"，而不是 "哪个 AI 做的？"
+
+---
+
+## 第一步：安装到 Claude Code
+
+### 方式 A：从官网下载（推荐）
+
+1. 访问 [impeccable.style](https://impeccable.style)
+2. 选择 **Claude Code** 格式，下载 ZIP
+3. 解压到你的项目根目录
+
+### 方式 B：从 GitHub 仓库手动复制
+
+```bash
+# 克隆仓库
+git clone https://github.com/pbakaus/impeccable.git /tmp/impeccable
+
+# 安装到特定项目（推荐）
+cp -r /tmp/impeccable/dist/claude-code/.claude your-project/
+
+# 或安装到全局（所有项目生效）
+cp -r /tmp/impeccable/dist/claude-code/.claude/* ~/.claude/
+```
+
+> **注意：** `dist/` 目录需要先执行构建才会生成。如果仓库中没有 `dist/`，直接用方式 A 从官网下载更简单。
+
+安装后，你的 `.claude/skills/` 目录下会多出 `frontend-design` 技能和一系列命令技能。
+
+---
+
+## 第二步：初始化项目上下文（/teach-impeccable）
+
+**这是最关键的一步。** Impeccable 不会凭空猜你的设计风格 —— 它需要了解你的项目背景。
+
+在你的项目目录中打开 Claude Code，输入：
+
+```
+/teach-impeccable
+```
+
+Claude 会依次询问你三个核心问题：
+
+| 问题 | 目的 | 回答示例 |
+|------|------|----------|
+| 目标用户是谁？ | 理解受众 | "面向开发者的 SaaS 仪表盘" |
+| 用户要完成什么任务？ | 理解场景 | "监控 API 性能、查看错误日志" |
+| 品牌调性是什么？ | 确定风格 | "专业、克制、偏技术感但不冰冷" |
+
+回答后，Impeccable 会将上下文保存到项目根目录的 `.impeccable.md` 文件中。**以后每次使用设计命令都会自动读取这个文件，不需要重复回答。**
+
+---
+
+## 第三步：核心工作流（只需记住 3 个命令）
+
+日常使用只需要掌握 **审查 → 修复 → 打磨** 这个流程：
+
+### `/audit` — 发现问题
+
+对你的 UI 做全面的技术质量检查（无障碍、性能、响应式），输出报告但不修改代码。
+
+```
+/audit                    # 审查整个页面
+/audit header             # 只看 header 部分
+/audit checkout flow      # 聚焦结账流程
+```
+
+**什么时候用：** 动手改之前，先搞清楚问题在哪。
+
+### `/normalize` — 修复不一致
+
+将 UI 对齐到设计系统标准：统一间距、颜色 token、字体层级。
+
+```
+/normalize blog           # 统一博客页的设计 token
+/normalize buttons        # 统一按钮样式
+```
+
+**什么时候用：** `audit` 之后，修复检查出的问题。
+
+### `/polish` — 上线前打磨
+
+最后一遍检查 + 细节优化。
+
+```
+/polish feature modal     # 打磨弹窗
+/polish settings page     # 打磨设置页
+```
+
+**什么时候用：** 代码准备部署前的最后一步。
+
+### 串联使用
+
+```
+/audit /normalize /polish blog    # 完整流程：审查 → 修复 → 打磨
+```
+
+---
+
+## 第四步：按需使用的进阶命令
+
+核心流程之外，Impeccable 还有 17 个专项命令。不需要全记住，按场景查找即可：
+
+### 设计调性调整
+
+| 命令 | 效果 |
+|------|------|
+| `/bolder` | 设计太平淡？加强视觉冲击力 |
+| `/quieter` | 设计太花哨？降低视觉强度 |
+| `/colorize` | 引入更有策略性的色彩 |
+| `/typeset` | 修复字体选择、层级、大小 |
+| `/arrange` | 修复布局、间距、视觉节奏 |
+
+### 功能性增强
+
+| 命令 | 效果 |
+|------|------|
+| `/animate` | 添加有意义的动效 |
+| `/harden` | 加强错误处理、i18n、边界情况 |
+| `/optimize` | 性能优化 |
+| `/adapt` | 适配不同设备 |
+| `/extract` | 提取为可复用组件 |
+
+### 内容与体验
+
+| 命令 | 效果 |
+|------|------|
+| `/critique` | UX 设计评审（层级、清晰度、情感共鸣） |
+| `/clarify` | 改善不清晰的 UX 文案 |
+| `/distill` | 去掉多余的东西，回归本质 |
+| `/delight` | 加入令人愉悦的小细节 |
+| `/onboard` | 设计引导流程 |
+| `/overdrive` | 加入技术上惊艳的特效 |
+
+---
+
+## 常见场景速查表
+
+| 场景 | 推荐命令组合 |
+|------|-------------|
+| 新页面开发完，准备提交 | `/audit` → `/normalize` → `/polish` |
+| 页面太无聊，想更有个性 | `/critique` → `/bolder` → `/colorize` |
+| 页面太花哨，想收敛 | `/critique` → `/quieter` → `/distill` |
+| 想加动效但怕过度 | `/animate`（它内置了 reduced-motion 考虑） |
+| 表单体验差 | `/harden` → `/clarify` |
+| 想做 code review 级别的设计审查 | `/audit` → `/critique` |
+
+---
+
+## Impeccable 帮你避开的 "AI 设计反模式"
+
+Impeccable 的 skill 里内置了一份 "不要做" 清单，Claude 在生成代码时会自动遵守：
+
+- **不用** Inter、Roboto、Arial 等烂大街字体
+- **不用** 灰色文字配彩色背景（看起来褪色）
+- **不用** 纯黑 `#000` 或纯白 `#fff`（总是带一点色调倾向）
+- **不用** 卡片套卡片的布局
+- **不用** 弹跳/弹性缓动（过时且俗气）
+- **不用** 紫蓝渐变 + 暗色背景 + 霓虹高亮的 "AI 配色"
+- **不用** 渐变文字做 "视觉冲击"
+- **不用** 所有东西都居中对齐
+
+---
+
+## 总结
+
+```
+安装 → /teach-impeccable 初始化 → /audit → /normalize → /polish → 上线
+```
+
+记住这一条线就够了。其余 17 个命令是你的工具箱，按需取用。

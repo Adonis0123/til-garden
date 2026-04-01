@@ -38,6 +38,7 @@
               "tools/codex-plugin-claude-code",
               "tools/git-cheatsheet",
               "tools/gstack-daily-usage",
+              "tools/impeccable-quickstart-guide",
               "tools/iterm2-zsh-cheatsheet",
               "tools/zoxide-smarter-cd"
             ]

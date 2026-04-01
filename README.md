@@ -35,6 +35,7 @@ mintlify dev
 │   ├── codex-plugin-claude-code.mdx
 │   ├── git-cheatsheet.mdx
 │   ├── gstack-daily-usage.mdx
+│   ├── impeccable-quickstart-guide.mdx
 │   ├── iterm2-zsh-cheatsheet.mdx
 │   └── zoxide-smarter-cd.mdx
 ├── .mintignore
