@@ -21,6 +21,7 @@
             "pages": [
               "ai/harness-design-long-running-apps",
               "ai/levels-of-agentic-engineering",
+              "ai/llm-wiki-pattern",
               "ai/superpowers-workflow-guide"
             ]
           },
