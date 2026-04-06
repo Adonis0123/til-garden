@@ -26,6 +26,7 @@ mintlify dev
 ├── ai/
 │   ├── harness-design-long-running-apps.mdx
 │   ├── levels-of-agentic-engineering.mdx
+│   ├── llm-wiki-in-code-projects.mdx
 │   ├── llm-wiki-pattern.mdx
 │   └── superpowers-workflow-guide.mdx
 ├── frontend/

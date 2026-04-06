@@ -1,0 +1,597 @@
+---
+title: 把 LLM Wiki 模式搬进代码仓库：NextJS 项目的 5 个高价值场景
+description: >-
+  Karpathy 的 LLM Wiki 模式原本是"一个人读文章建知识库"的场景，但搬进代码项目会发生三件根本变化。本文以 NextJS
+  项目为例，分析真正值得做的 5 个落地场景——ADR 决策档案、Feature 总图、依赖情报、Bug 档案、Onboarding
+  Wiki——以及哪些事应该交给 TypeScript、Prisma、Storybook 这些现有工具而不是 LLM wiki
+---
+
+> 前置阅读：[让 LLM 持续维护你的知识库：Karpathy LLM Wiki 模式精读与落地指南](./llm-wiki-pattern.md)
+>
+> 那篇讲的是"一个人 + 个人知识库"。这篇专门讲"一个团队 + 一个代码仓库"下这套模式长什么样。不重复原理，只讲落地差异。
+
+---
+
+## 一句话结论（读不下去就只看这一句）
+
+在代码项目里，LLM Wiki 的最高价值**不是"自动生成文档"**——那是 TypeScript、Prisma、Storybook 这些工具已经干掉的场景——而是**沉淀那些目前只存在于 Slack、脑子里、PR 讨论里的"为什么"和"历史脉络"，并让它们不会过期**。
+
+用一句更直白的话：**LLM Wiki 替代的不是 Storybook，而是团队那份三个月没人更新的 Notion**。
+
+---
+
+## 一、场景迁移：从"个人 KB"到"代码项目"，三件事根本改变
+
+Karpathy 原文的默认场景是：**一个人**读外部文章，LLM 帮他写一份**个人** wiki。迁到代码项目，下面三件事会变，而且变得很深：
+
+| 维度 | 个人 KB | 代码项目 |
+|------|---------|---------|
+| **Raw sources 是什么** | 外部文章、播客、论文、书 | **代码本身** + PR 讨论 + bug 报告 + 会议纪要 + RFC + Slack 讨论 |
+| **Wiki 的用户** | 你一个人 | 团队 + 半年后的你 + 下周入职的同事 |
+| **维护触发点** | "我刚读了一篇新文章" | **"我刚 push 了一个 PR"** / "我刚升级了一个依赖" / "线上刚出了一个 incident" |
+
+第三件——触发点从"人主动发起 ingest"变成"**git 事件自动触发**"——是所有差异里最关键的一个。
+
+它意味着什么？意味着在代码项目里，LLM Wiki 的维护可以挂到 **pre-commit hook / PR bot / CI job** 上。不再是"我想起来了就跑一下 ingest"，而是"只要代码动了，wiki 就同步动"。
+
+这是代码项目场景相对个人 KB 场景的**独特优势**：触发器是确定的、事件驱动的、自动化的。人不需要记得去维护。
+
+---
+
+## 二、怎么判断一个场景值不值得用 LLM Wiki
+
+在讲具体场景之前，先给一条**判断准则**，这条准则会贯穿全文：
+
+> **如果这份文档可以从代码里用工具自动生成，就不要用 LLM Wiki 做——让工具做。**
+>
+> **LLM Wiki 适合的是：代码里不存在、只存在于人脑和讨论记录里的那些信息——决策理由、历史脉络、跨模块的叙事、"为什么这么做"、"当初放弃了什么方案"。**
+
+这条准则下，可以画出一张很清楚的图：
+
+```
+  代码里的确定性信息                           代码里没有、人脑里有的信息
+  ─────────────────                           ───────────────────────
+   API schema                                  为什么选了这个方案
+   TS 类型                                      这个 bug 的根因叙述
+   DB schema                                    这个 feature 的时间线
+   组件 props                                    依赖升级踩过的坑
+   测试用例                                      团队约定的隐性规则
+   ↓                                            ↓
+   用 OpenAPI / Prisma /                         用 LLM Wiki
+   Storybook / Typedoc
+   （零维护成本，永远准）                        （LLM 维护成本近零）
+```
+
+左半区**永远不要**交给 LLM wiki——工具生成的结果更准、更新更及时、零维护成本。
+右半区**才是** LLM Wiki 的主战场。
+
+下面 5 个场景，全部落在右半区。
+
+---
+
+## 三、5 个真正值得做的落地场景
+
+每个场景我会给你：
+1. **是什么** —— 一句话
+2. **Raw sources** —— 原始素材从哪里来
+3. **Wiki 长什么样** —— 实际的目录/文件结构
+4. **触发时机** —— 什么事件让 LLM 去更新
+5. **LLM 的独特价值** —— 为什么人做不好这件事
+6. **ROI** —— 收益评估
+
+### 场景 1：ADR 决策档案（杀手级场景）
+
+**是什么**：把"为什么我们选了 A 而不是 B"这种决策，从 Slack / PR 讨论 / 会议纪要里**打捞出来**，变成一份会随时间演化的持久文档。
+
+**Raw sources**：
+- PR 讨论串（特别是 review 里的设计争论）
+- Slack 里的架构讨论串
+- 会议纪要、白板截图
+- RFC 草稿
+
+**Wiki 长什么样**：
+
+```
+docs/wiki/decisions/
+├── index.md                          # 所有决策的索引
+├── 2026-01-why-zustand-over-redux.md
+├── 2026-02-why-trpc-over-rest.md
+├── 2026-03-why-better-auth.md
+└── 2026-04-why-turborepo-over-nx.md
+```
+
+每份 ADR 的 schema 可以像这样：
+
+```markdown
+# 为什么选 Zustand 而不是 Redux
+
+- **决策时间**：2026-01-15
+- **决策者**：@alice / @bob
+- **影响范围**：整个前端状态管理层
+- **状态**：active（尚未被挑战）
+
+## 背景
+...
+
+## 考虑过的方案
+- Redux + RTK: 优点 ... / 缺点 ...
+- Zustand: 优点 ... / 缺点 ...
+- Jotai: 优点 ... / 缺点 ...
+
+## 最终选择
+Zustand，因为 ...
+
+## 放弃 Redux 的核心理由
+...
+
+## 未来什么情况下应该重新评估这个决策
+- 如果团队规模超过 20 人
+- 如果需要 time-travel debugging
+- 如果出现超过 3 个全局复杂状态机
+
+## 相关讨论
+- [PR #234 的 review 讨论](https://github.com/...)
+- [Slack 讨论串 2026-01-12](slack://...)
+```
+
+**触发时机**：
+- PR description 或 commit message 里出现 `ADR:` 前缀 → agent 自动起一份新 ADR
+- 出现"我们为什么不用 X"这类问题时 → agent 查是否已有 ADR，没有就起一份
+
+**LLM 的独特价值**：
+
+做 ADR 这件事本身人是会的，但**保持 ADR 最新**人是做不到的。
+
+举个例子：你 2026-01 写了"为什么选 Zustand"，2026-03 团队讨论到是不是要加 Redux DevTools 的能力——这个讨论在 Slack 里发生了，没人会想起来回头去更新那份 ADR。半年后，新同事来问同样的问题，前半年那段重要的讨论就**丢了**。
+
+LLM Wiki 模式的 agent 会做这件事：每次发生架构讨论，它**主动打开相关 ADR**，判断是不是要追加一条：
+
+```markdown
+> ⚠️ **2026-03-12 — 该决策被部分挑战**
+>
+> 在 [PR #456](...) 的 review 里，@carol 提出因为新加的 feature X，需要 time-travel debug 能力。
+> 当前结论：在 Zustand 上自己手写 devtools middleware，暂不迁移。
+> 重新评估阈值：如果再出现类似需求 2 次，就考虑迁移。
+```
+
+这是人永远不会主动做的事，但它**极其重要**——它让决策变成一条有时间线的叙事，而不是一份静态文档。
+
+**ROI**：⭐️⭐️⭐️⭐️⭐️
+
+这是我认为所有场景里 ROI 最高的一个。它的替代品（Notion 里的 ADR 模板、Confluence 的 decision log）**从来没人维护**，而这个是 LLM 自动维护。
+
+---
+
+### 场景 2：Feature 总图（"一个 feature 一张页"）
+
+**是什么**：项目里每个 user-facing feature 都有一张 wiki 页，**一页浓缩该 feature 的所有信息**——用户流程、涉及的代码路径、相关 API、DB 表、known bugs、owner、metrics dashboard 链接。
+
+**Raw sources**：
+- PRD 文档、Figma 链接
+- `app/(features)/<feature>/` 目录下的所有代码
+- 相关 API routes（`app/api/...`）
+- 相关的 Prisma schema 片段
+- Sentry / PostHog 相关 events 的 dashboard
+- 曾经的 bug 修复记录
+
+**Wiki 长什么样**：
+
+```
+docs/wiki/features/
+├── index.md
+├── checkout.md
+├── search.md
+├── user-profile.md
+└── payment-webhook.md
+```
+
+一份 `checkout.md` 可能长这样：
+
+```markdown
+# Checkout（结账流）
+
+- **PM Owner**: @dave
+- **Tech Owner**: @alice
+- **Last Major Change**: 2026-03 (添加 Apple Pay 支持)
+- **Metrics Dashboard**: [link](...)
+
+## 一句话说明
+用户从购物车到支付完成的完整流程，支持信用卡 / Apple Pay / 微信支付。
+
+## 用户流程
+1. `/cart` → 用户点击 "Checkout"
+2. `/checkout/shipping` → 填写收货地址
+3. `/checkout/payment` → 选择支付方式
+4. POST `/api/orders` → 创建订单
+5. 根据支付方式分发到对应 webhook
+6. `/checkout/success` → 订单确认页
+
+## 涉及的代码
+### 页面
+- `app/checkout/shipping/page.tsx`
+- `app/checkout/payment/page.tsx`
+- `app/checkout/success/page.tsx`
+
+### API Routes
+- `app/api/orders/route.ts` (POST: 创建订单)
+- `app/api/payments/stripe/webhook/route.ts`
+- `app/api/payments/apple-pay/webhook/route.ts`
+
+### 组件
+- `components/checkout/ShippingForm.tsx`
+- `components/checkout/PaymentSelector.tsx`
+- `components/checkout/OrderSummary.tsx`
+
+### 涉及的 Prisma 模型
+- `Order`
+- `OrderItem`
+- `Payment`
+- `ShippingAddress`
+
+## 历史 Bug
+- [2026-02](link) 优惠券并发使用导致超发 → 用 DB constraint 修掉
+- [2026-03](link) Apple Pay 退款未触发库存回滚 → 在 webhook 里补了 transaction
+
+## 已知的技术债
+- Payment webhook 重试逻辑在三个文件里重复了
+- Order status 转换没有 state machine 校验
+
+## 相关 ADR
+- [2026-02 why-we-use-db-constraints-for-coupons](../decisions/2026-02-why-db-constraints-for-coupons.md)
+```
+
+**触发时机**：
+- PR merge 到 `app/checkout/**` 或 `components/checkout/**` → agent 更新 `checkout.md`
+- 新的 Sentry error 频繁出现在这个 feature 的文件里 → agent 主动追加到"历史 Bug"
+- PR description 里明确提到"影响 checkout" → 也触发更新
+
+**LLM 的独特价值**：
+
+你接手一个 feature 想改一个 bug，要花 2 小时从 `app/` 翻路由、从 `prisma/schema.prisma` 找表、从 Sentry 找错误、从 Figma 找设计……
+
+这些信息本来应该**在一个地方**，而不是散落在 6 个工具里。
+
+Feature Page 的价值是提供一个**入口页**，让你不用记得每个工具在哪。更强的是：**PR bot 可以在 review 里自动贴一句：**
+
+> ⚠️ 你这次改动触及了 `checkout` feature。根据 [checkout.md 的 Feature Page](../docs/wiki/features/checkout.md)，相关的技术债包括 "Payment webhook 重试逻辑重复"，你要不要一起处理？
+
+这就让 wiki 从"被动文档"变成了**主动的 review 助手**。
+
+**ROI**：⭐️⭐️⭐️⭐️
+
+尤其适合**所有权频繁交接**的团队（每次新人接手一个 feature 都要花一两天理解现状）。
+
+---
+
+### 场景 3：依赖情报页（Dependency Intel）
+
+**是什么**：每个**非平凡的**依赖（react-hook-form、zustand、better-auth 这种）都有一页，包含：我们用了哪些子能力、踩过哪些坑、为什么当初选它、升级注意事项。
+
+**Raw sources**：
+- `package.json`
+- 各库的 CHANGELOG（upstream）
+- 你项目里实际的 import 调用点
+- 历史上的 workaround PR
+
+**Wiki 长什么样**：
+
+```
+docs/wiki/deps/
+├── index.md
+├── react-hook-form.md
+├── zustand.md
+├── better-auth.md
+├── tanstack-query.md
+└── prisma.md
+```
+
+一份 `react-hook-form.md` 的样子：
+
+```markdown
+# react-hook-form
+
+- **当前版本**：7.52.0
+- **上次升级**：2026-02-20 (from 7.48.0)
+- **引入时间**：2025-09
+- **替代了**：原来的 formik + yup 方案
+
+## 我们实际用到的子能力
+- `useForm` + `register`
+- `Controller`（配合 Radix Select / DatePicker）
+- `zodResolver`（all schemas in `lib/schemas/`）
+- ❌ 没用 `useFieldArray`（有嵌套表单时考虑）
+- ❌ 没用 `useWatch`（目前都用 form.watch()）
+
+## 项目里主要的调用点
+- `components/checkout/ShippingForm.tsx`
+- `components/auth/LoginForm.tsx`
+- `components/settings/ProfileForm.tsx`
+- （共 12 个文件，grep: `from "react-hook-form"`)
+
+## 当初为什么选它而不是 formik
+见 [ADR 2025-09-why-rhf-over-formik](../decisions/2025-09-why-rhf-over-formik.md)
+
+## 踩过的坑
+### 坑 1：Controller 和 Radix Select 的 onValueChange
+Radix Select 的 `onValueChange` 签名和 RHF 的 `field.onChange` 签名不完全兼容。
+修复：`components/ui/select.tsx:45` 做了 adapter。
+
+### 坑 2：zodResolver 的 async 校验
+当 zod schema 里有 `.refine(async ...)` 时，默认的 zodResolver 不会等待 promise。
+修复：需要用 `zodResolver(schema, { async: true })`。
+
+## 升级注意事项
+- 7.52 → 7.53 的 breaking change：`useController` 的返回类型收窄了 ...
+- 7.53 → 8.0 的 breaking change：预计 deprecate `Controller`，改用 `createFormHook`
+```
+
+**触发时机**：
+- `package.json` 的 dependencies 改动 → agent 重读对应页的"当前版本"和"升级注意事项"
+- 新加一个依赖 → agent 起一份新页（但只对"非平凡"依赖起，`lodash` 不用）
+- 每周 lint 时，agent 抓一次 upstream CHANGELOG，主动更新"升级注意事项"
+
+**LLM 的独特价值**：
+
+`npm outdated` 告诉你有 30 个包可以升，但**不告诉你每个升级对你代码的实际影响**。
+
+LLM 的独特价值在于：它能**读 upstream CHANGELOG + grep 你的项目**，得出一个**针对性的影响评估**：
+
+> 📦 **react-hook-form 7.52 → 7.53 升级建议**
+>
+> upstream CHANGELOG 说 `useController` 的返回类型收窄了 `field.ref` 为 `RefCallback` 而不是 `MutableRefObject`。
+>
+> 在你的项目里，我 grep 到以下文件用了 `field.ref.current`：
+> - `components/ui/select.tsx:52`
+> - `components/forms/PhoneInput.tsx:33`
+>
+> 这两处升级后会编译报错，建议升级前先改成 `useImperativeHandle` 或 `useEffect + callbackRef` 的写法。
+
+这是人做不了的——人读 CHANGELOG 能读懂变化，但**不会去 grep 整个项目找受影响的调用点**。LLM 会。
+
+**ROI**：⭐️⭐️⭐️⭐️⭐️
+
+你会发现自己突然敢升级以前不敢碰的依赖了。
+
+---
+
+### 场景 4：Bug 档案（Incident Wiki）
+
+**是什么**：每个线上 bug 一页，包含：表象、根因、修复、涉及文件、关联的 incident。重点是**让 LLM 主动做归纳**——把表象不同但根因相同的 bug 连起来。
+
+**Raw sources**：
+- Sentry / PostHog 事件详情
+- git commit（特别是 `fix:` 前缀的）
+- Post-mortem 文档
+- 客诉工单
+
+**Wiki 长什么样**：
+
+```
+docs/wiki/bugs/
+├── index.md
+├── 2026-03-12-coupon-overuse.md
+├── 2026-04-01-apple-pay-refund-stock.md
+├── 2026-04-05-server-component-usestate.md
+└── concepts/                          # LLM 归纳出的"根因概念"
+    ├── race-conditions-in-db.md
+    └── server-vs-client-boundary.md
+```
+
+一份 bug 页样子：
+
+```markdown
+# [2026-04-05] server component 里用 useState 导致首页空白
+
+- **严重度**: P1
+- **发现时间**: 2026-04-05 14:32 via Sentry
+- **修复时间**: 2026-04-05 15:10
+- **修复 PR**: [#789](link)
+- **根因分类**: [server-vs-client-boundary](../concepts/server-vs-client-boundary.md)
+
+## 表象
+首页用户随机 10% 遇到空白页。Console 里是 "useState is not a function"。
+
+## 根因
+`app/page.tsx` 意外引入了 `components/PromoBanner.tsx`，后者是 client component
+但没加 `"use client"` 指令。Next.js 把它当 server component 处理，useState 就 crash 了。
+
+## 为什么类型检查没抓到
+TS 不区分 server/client component，这是一个运行时才发现的 boundary 问题。
+
+## 修复
+在 `components/PromoBanner.tsx` 第一行加 `"use client"`。
+
+## 后续预防
+- 加了一个 ESLint rule 检测 hooks 在没有 `"use client"` 的文件里被使用
+- 相关规则在 `eslint.config.mjs:87`
+```
+
+**LLM 的独特价值**：
+
+人类看 bug 列表，每个都是独立事件。LLM 读完所有 bug 页之后可以**主动归纳**：
+
+> 🔍 **Wiki Lint 发现**
+>
+> `bug-2026-03-12`、`bug-2026-04-01`、`bug-2026-04-05` 这三个表象完全不同的 bug，
+> 根因可以归纳为同一个概念："server/client component 边界识别不准"。
+>
+> 建议新建一个概念页 `docs/wiki/bugs/concepts/server-vs-client-boundary.md`，
+> 把三个 bug 作为该概念的实例连接起来，
+> 并在里面沉淀"怎么预防这类 bug"的通用做法。
+
+这是 LLM Wiki 相对传统 bug tracker 的**质变**：它不只是记录，它**主动做归纳**，把"一次性 fix"变成"沉淀为团队规范"。
+
+**ROI**：⭐️⭐️⭐️⭐️
+
+中型及以上团队特别有价值。小团队 bug 少时意义有限。
+
+---
+
+### 场景 5：Onboarding Wiki（自维护的"代码库导览"）
+
+**是什么**：给新人的"从零到能改第一个 PR"的导览，但它是**自维护的**——每次 PR 合并会自动检查 onboarding 里引用的路径、命令、环境变量还在不在，过期了自动打 stale 标记。
+
+**Raw sources**：
+- 整个 repo
+- `package.json` scripts
+- `.env.example`
+- 当前的 CI 配置
+
+**Wiki 长什么样**：
+
+```
+docs/wiki/onboarding/
+├── 00-start-here.md
+├── 01-local-setup.md
+├── 02-codebase-tour.md
+├── 03-your-first-pr.md
+└── troubleshooting.md
+```
+
+**触发时机**：
+- 每次 PR merge → agent 跑一次 onboarding lint：
+  - onboarding 里引用的所有文件路径还存在吗？
+  - 提到的 `pnpm xxx` 命令在 `package.json` 里还有吗？
+  - 说的环境变量在 `.env.example` 里还在吗？
+- 失败的项自动加 `> ⚠️ STALE: 这行引用的 xxx 已经不存在，需要更新`
+
+**LLM 的独特价值**：
+
+传统 onboarding 文档**写完就开始腐烂**。代码改了文档没跟上，新人读到过时的东西，第二天得找老同事救命。
+
+LLM Wiki 的区别不是"写得更好"，而是**"每次 PR 合并时它会自动检查自己是不是还准确"**。检查不过就打 stale 标记。这让 onboarding 文档有了**被动更新**机制——哪怕没人主动去改，它也不会默默腐烂。
+
+**ROI**：⭐️⭐️⭐️
+
+高度取决于团队新人频率。每个月来一个新人的团队 ROI 高；一年不招一个人的团队意义有限。
+
+---
+
+## 四、反面清单：哪些事**不要**用 LLM Wiki 做
+
+下面这些场景每一个都能套 LLM Wiki，但**都不该套**，因为有更好的工具：
+
+| 想做的事 | 为什么不适合 LLM Wiki | 该用什么 |
+|---------|---------------------|---------|
+| API 文档 | schema + 类型已经可以自动生成 | `@trpc/openapi` / Swagger / Orval |
+| DB schema 文档 | Prisma 自动生成 ERD 和类型 | Prisma Studio / Atlas / dbdocs |
+| 组件 props 文档 | TS 类型 + Storybook Controls 已经是事实标准 | Storybook / Typedoc |
+| 代码行级注释 | 这是代码本身的责任 | JSDoc / 好的命名 |
+| Test coverage 报告 | 已经有成熟工具 | Vitest / Jest `--coverage` |
+| 部署拓扑图 | 基础设施即代码本身就是描述 | Terraform / Pulumi 自己的 graph 命令 |
+
+**判断准则**（重复一遍，因为太重要）：
+
+> 如果一份文档可以从代码里用工具自动生成，就不要用 LLM Wiki 做——让工具做。
+>
+> LLM Wiki 只做"代码里不存在、只存在于人脑和讨论里"的信息。
+
+---
+
+## 五、最小起步方案：今天就能在项目里试一下
+
+别一开始就上 5 个场景。按下面的顺序来：
+
+### Step 1：起最小骨架（10 分钟）
+
+```text
+<your-nextjs-project>/
+├── CLAUDE.md                        # schema 层
+├── docs/
+│   └── wiki/
+│       ├── index.md                 # content-oriented 索引
+│       ├── log.md                   # chronological 操作日志
+│       └── decisions/               # 先只做 ADR
+│           └── .gitkeep
+```
+
+### Step 2：在 `CLAUDE.md` 加三条规则
+
+```markdown
+## Wiki 维护约定
+
+当发生以下事件时，自动维护 `docs/wiki/`:
+
+1. **ADR 触发**：当 PR description 或 commit message 里包含 `ADR:` 前缀时，
+   在 `docs/wiki/decisions/` 下新建一份决策档案，文件名格式 `YYYY-MM-<slug>.md`，
+   并在 `index.md` 里追加一行入口。
+
+2. **ADR 挑战**：当出现明显挑战已有决策的讨论时（例如新 PR 提到
+   "as discussed, we're moving away from X"），打开相关 ADR，
+   在末尾追加一条 `> ⚠️ YYYY-MM-DD — 该决策被部分挑战：...`。
+
+3. **Log 记录**：所有操作（创建 / 更新 / lint）都追加一行到 `log.md`，
+   格式 `## [YYYY-MM-DD HH:MM] <action> | <target>`。
+```
+
+### Step 3：只做场景 1（ADR），跑两周
+
+别急着上 Feature Page、Dependency Intel 那些。**先只跑 ADR**，两周之后看感觉对不对：
+
+- 有没有 ADR 真的被写出来？
+- 写出来的 ADR 自己回头读起来有没有价值？
+- 挑战记录有没有真的发生？
+
+跑对了再加第二个场景。跑不对先问"为什么不对"，大概率是 schema 里的规则写得太抽象 / 太死板，需要修。
+
+### Step 4：什么时候加更多场景
+
+以下信号出现时，再加对应场景：
+
+- 你发现 PR review 里反复问"为什么这样写" → 加 **ADR 持续维护**（场景 1 的进阶）
+- 你接手一个不熟悉的 feature 花了 2 小时摸索 → 加 **Feature 总图**（场景 2）
+- 你升级一个依赖时心里发虚 → 加 **依赖情报页**（场景 3）
+- 连续两三个 bug 看起来根因相似 → 加 **Bug 档案**（场景 4）
+- 团队来了新人且没人愿意带 → 加 **Onboarding Wiki**（场景 5）
+
+---
+
+## 六、一些常见的合理化，和为什么要挑战它们
+
+| 你可能想 | 但实际上 |
+|---------|---------|
+| "这不就是 README.md 吗？" | README 是静态的，写完就没人维护。LLM Wiki 是**事件驱动的、自动维护的**。这是质的差别。 |
+| "我们已经有 Notion / Confluence 了" | 对，且没人更新。LLM Wiki 的目的不是替 Notion，是解决"没人更新"这件事本身。 |
+| "让 LLM 自动写文档风险太大，会瞎编" | 所以永远**要人 review**。LLM 提出变更 → 人批准 → 合入 wiki。和 PR review 是一个流程。 |
+| "我们项目太小，不值得搞这个" | 小项目的起步成本也小——只做场景 1 十分钟就搞定了。别做 5 个。 |
+| "写 schema（CLAUDE.md）好麻烦" | 一开始不要追求完美 schema。写一份**能跑**的最小版，跑出问题再改。schema 是被使用养大的。 |
+
+---
+
+## 七、行动清单
+
+读完这篇你可以立刻做的事：
+
+- [ ] 打开你现在在做的 NextJS（或任何）项目
+- [ ] 在根目录的 `CLAUDE.md` 里加一节「Wiki 维护约定」，只写场景 1（ADR）的三条规则
+- [ ] 新建 `docs/wiki/decisions/` 目录
+- [ ] 选一个你最近在 PR 里讨论过的架构决策，让 agent 起一份 ADR
+- [ ] 读一遍生成的 ADR，改掉你不满意的地方，反推修正 schema
+- [ ] 两周之后回头看，判断要不要加场景 2
+- [ ] **永远不要一上来就做 5 个场景**
+
+---
+
+## 写在最后
+
+前一篇 til 我们聊了 LLM Wiki 模式的原理，结尾说它最大的优势是"LLM 不会无聊"。
+
+这一篇我们聊了搬到代码项目里能干什么——答案是：**它能替你做团队里所有"没人愿意做但又必须做"的那些维护工作**。
+
+- ADR 写完就没人回头更新？LLM 会。
+- Feature Page 写完就腐烂？LLM 会自动检查过期。
+- 依赖升级没人敢碰？LLM 会读 CHANGELOG + grep 你的代码，给你针对性的影响评估。
+- Bug 一个一个修、从不归纳？LLM 会主动做跨 bug 的根因归纳。
+- Onboarding 文档写完就烂？LLM 会每次 PR 合并时 lint 一次自己。
+
+**你的团队里那份没人更新的 Notion，换成一份 agent 维护的 wiki，会成为团队真正的"制度记忆"。**
+
+这是 LLM Wiki 模式在代码项目里最朴素、也最有价值的一件事。
+
+---
+
+## 延伸阅读
+
+- 前置原理篇：[让 LLM 持续维护你的知识库：Karpathy LLM Wiki 模式精读与落地指南](./llm-wiki-pattern.md)
+- 原文：[LLM Wiki (gist)](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) by Andrej Karpathy
+- 相关 til：[Anthropic 长程任务的 Harness 设计](./harness-design-long-running-apps.md)（讲 agent 在长程任务里的上下文维护，和 LLM Wiki 的"沉淀"思路一脉相承）
