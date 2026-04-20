@@ -24,7 +24,9 @@ mintlify dev
 
 ```
 ├── ai/
+│   ├── ai-era-frontend-workflow.mdx
 │   ├── harness-design-long-running-apps.mdx
+│   ├── learn-oss-project.mdx
 │   ├── levels-of-agentic-engineering.mdx
 │   ├── llm-wiki-in-code-projects.mdx
 │   ├── llm-wiki-pattern.mdx
@@ -36,6 +38,7 @@ mintlify dev
 │   ├── claude-code-hidden-commands.mdx
 │   ├── codex-plugin-claude-code.mdx
 │   ├── git-cheatsheet.mdx
+│   ├── git-worktree.mdx
 │   ├── gstack-daily-usage.mdx
 │   ├── impeccable-quickstart-guide.mdx
 │   ├── iterm2-zsh-cheatsheet.mdx

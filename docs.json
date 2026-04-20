@@ -19,7 +19,9 @@
           {
             "group": "AI",
             "pages": [
+              "ai/ai-era-frontend-workflow",
               "ai/harness-design-long-running-apps",
+              "ai/learn-oss-project",
               "ai/levels-of-agentic-engineering",
               "ai/llm-wiki-in-code-projects",
               "ai/llm-wiki-pattern",
@@ -39,6 +41,7 @@
               "tools/claude-code-hidden-commands",
               "tools/codex-plugin-claude-code",
               "tools/git-cheatsheet",
+              "tools/git-worktree",
               "tools/gstack-daily-usage",
               "tools/impeccable-quickstart-guide",
               "tools/iterm2-zsh-cheatsheet",

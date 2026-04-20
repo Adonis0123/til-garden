@@ -1,0 +1,294 @@
+---
+title: Git Worktree 实战：多分支并行开发的正确姿势
+description: 用一个 .git 挂多个工作目录，告别 stash/checkout 打断上下文的开发流
+---
+
+你是不是遇到过这种情况：正在 `main` 分支写一个功能，dev server 跑着、IDE 开了七八个标签、浏览器登着测试账号、AI 助手的上下文堆了半小时——这时候同事扔过来一个 PR 说"紧急 review 一下"。
+
+`git stash` + `git checkout` 是教科书答案，但它会把你当前的**整个工作环境**连根拔起：文件变样、热重载抖动、IDE 标签内容全换、AI 上下文失真。等你 review 完切回来，光"热身"就要再花十分钟。
+
+另一种做法是**把同一个仓库 clone 好几份**——`project`、`project-2`、`project-hotfix`……理解成本是零，但 `.git` 和 `node_modules` 在磁盘上复印了 N 次，`fetch` 要跑 N 遍，分支列表也各看各的。
+
+`git worktree` 就是为这种场景准备的：**一个 `.git`，挂多个工作目录**。它不是新东西——Git 2.5（2015 年）就已经有了——但很多人听过名字、每次要用前犹豫一下"这玩意到底是我想的那样吗"，然后默默又多 clone 一份。这篇文章把物理模型讲清楚，顺带给一份可抄即用的实战流程。
+
+---
+
+## 物理模型：一个 `.git` + 多个工作目录
+
+先把"一个 git 仓库 = `.git` 目录 + 工作目录"这句老生常谈掰开看：
+
+- **`.git` 是大脑**：对象库（所有 blob/tree/commit）、分支引用、reflog、hooks，你的全部历史都在这里
+- **工作目录是当前快照**：`git checkout` 做的事就是从 `.git` 里捞出对应 commit 的 tree，铺到工作目录变成文件。换句话说，工作目录里你看到的代码是"展开态"，`.git` 里才是"压缩态"
+
+普通 clone 的拓扑是**一个大脑绑一个工作目录**，切分支就是原地把工作目录重写成另一个 tree 的样子。这个模型简单直接，代价是工作目录只有一份——一次只能停留在一个分支的状态上。
+
+worktree 的拓扑长这样：
+
+```
+~/projects/myapp/                       <-- 主 worktree（main 分支）
+  .git/                                 <-- 大脑真身在这里
+    worktrees/
+      feat-x/                           <-- 新 worktree 的元数据（HEAD、index、锁）
+      pr-review/
+  src/
+  ...
+
+~/projects/myapp.wt/feat-x/             <-- 新 worktree（feat-x 分支）
+  .git                                  <-- 不是目录，是一个文件！
+  src/                                  <-- feat-x 分支展开出来的文件
+  ...
+
+~/projects/myapp.wt/pr-review/          <-- 新 worktree（pr-review 分支）
+  .git                                  <-- 同上，是文件
+  ...
+```
+
+一个大脑，挂多个工作目录。
+
+### 关键细节：新 worktree 里 `.git` 是文件
+
+这个点亲眼看一次就记住了。在新建的 worktree 里：
+
+```bash
+$ ls -la .git
+-rw-r--r--  1 user  staff  60 Apr 19 15:02 .git
+
+$ cat .git
+gitdir: /Users/user/projects/myapp/.git/worktrees/feat-x
+```
+
+就这一行指针。**新 worktree 不是独立的仓库，它是一个带指针的工作目录**，对象库、分支引用、hooks 全在主仓库的 `.git/` 里共享。
+
+对应地，主仓库 `.git/worktrees/<name>/` 会出现这个 worktree 的独立状态：它自己的 HEAD 指向哪、自己的 index 是什么、有没有被锁。**共享对象库，独立 HEAD/index/工作文件**——这就是 worktree 的全部精髓。
+
+---
+
+## 和 `git checkout` 的真正区别
+
+概念上的区别背不下来，用一个场景讲清楚。
+
+> 你正在 `main` 写 feature。Vite dev server 跑着，IDE 开着七八个标签，AI 助手 session 上下文堆了半小时，浏览器还登着测试账号。这时候 PR-42 要紧急 review。
+
+**选项 A：`git checkout pr-42`**
+
+- 未 commit 改动被拒绝，被迫 `git stash`
+- 工作目录整体换成 PR-42 的样子
+- Vite 触发全量热重载，可能直接崩
+- IDE 里七八个标签里的文件内容全变了——即使路径没变
+- AI session 之前聊的"main 上 feature 的第三步"上下文瞬间失真
+- review 完切回来：重新 stash pop、重新热重载、重新热身
+
+**选项 B：`git worktree add ../myapp.wt/pr-42 pr-42`**
+
+- 主目录**一个字节都没动**
+- 新建一个工作目录，在那里 checkout PR-42
+- 另开一个终端、另开一个 IDE 窗口、另起一个 AI session 去新目录干活
+- review 完 `git worktree remove`，主环境一直在原位
+- 想参考主目录的代码？打开看，它就在那儿
+
+一句话总结：**`checkout` 是换衣服（身体只有一个，衣服一次只能穿一套），`worktree` 是克隆分身（本体不动，副本独立行动）**。
+
+这个区别是 worktree 最值得记住的事情。所有其他细节（共享对象库、`.git` 文件、命令 API）都是为了让这件事成立。
+
+---
+
+## 对比"多份 clone"：诚实的 tradeoff
+
+很多人的第一反应是"多 clone 一份不就行了"。要诚实，不能一边倒：
+
+| 维度 | 多份 clone | worktree |
+|------|-----------|----------|
+| 理解成本 | 零，所见即所得 | 要懂"共享 .git + 独立工作目录" |
+| 磁盘占用 | 每份一个 `.git`（MB~GB）+ 每份 `node_modules` | 共享 `.git`，每份独立 `node_modules` |
+| `fetch` / `pull` | 各自要跑一遍 | 一次 fetch，所有 worktree 都能看到新分支和新 commit |
+| 分支可见性 | 各看各的本地分支列表 | 共享分支列表（在哪个目录看都一样） |
+| 误删保护 | 没有——`rm -rf` 就没了 | `git worktree remove` 会检测未 commit 改动并拦下 |
+| 适合场景 | **永久并行**：v1/v2 大版本、主仓库和长期 fork | **短期并行**：多分支切换、PR review、hotfix |
+
+一个合理的选择标准是：
+
+- 同一个 repo 不同分支，预期几天到几周会合并回主线 → **worktree**
+- 不同时期的 fork、或者已经长期分叉的 v1/v2 → **多 clone 没问题，别硬换**
+- 完全不同的项目（就算同名）→ **多 clone，没得商量**
+
+不要一刀切。如果几个副本本来就是不同实验方向的长期分支，继续保持多 clone 反而更清晰；但"main 上写 feature + 临时 review PR"这种高频短期场景，多 clone 是纯粹在交磁盘税——每多一份就多一次 `git fetch`、多一个 `node_modules`、多一套要手工同步的本地配置。
+
+---
+
+## 必须知道的几条局限
+
+worktree 不是银弹，这几条坑提前知道能少踩一脚：
+
+- **`node_modules` 不能共享**。前端项目这是最大的体积。pnpm 会把文件硬链到全局 store，所以多 worktree 的 node_modules 成本和多 clone **一样**，不会变差——但也不会变好。如果期望 worktree 帮你省 node_modules 空间，会失望
+- **同一个分支同时只能被一个 worktree 签出**。试图在第二个 worktree 再 checkout `main` 会被 git 直接拒绝：`'main' is already checked out at ...`。对应地，`git branch -a` 输出里被占用的分支前面会显示 `+`（而不是 `*`）
+- **主 worktree 不能随便删**。`.git/` 真身在主 worktree 里，删了主目录整个仓库就没了。删副 worktree 随便删
+- **每个 worktree 是独立的工作环境**。IDE 要单独打开那个目录；共用一个窗口在 worktree 之间跳来跳去是反模式，等于又回到了"一套身体换衣服"
+- **hooks 是共享的**。因为它们住在主 `.git/hooks/` 下，一套改动对所有 worktree 生效——想为某个副本单独关掉 pre-commit，只能在命令层用 `--no-verify` 绕过
+
+---
+
+## 核心命令（四条够用）
+
+别被 `git worktree --help` 的长列表吓到，90% 的场景这四条够：
+
+```bash
+# 建：在指定路径建一个新工作目录，-b 同时开新分支
+git worktree add <path> [-b <branch>] [<base-ref>]
+
+# 看：列出当前所有 worktree、各自的 HEAD、绑在哪个分支
+git worktree list
+
+# 删：安全删除，未 commit 改动会被拦下
+git worktree remove <path>
+
+# 清理：如果 worktree 目录被手动 rm 过，元数据会变孤儿
+git worktree prune
+```
+
+剩下的 `lock` / `unlock` / `move` / `repair` 这些真遇到场景再查不迟。
+
+### 最常用的观察命令
+
+真正开始用之后，你最常问的不是"能不能建"，而是：
+
+- 我现在这个目录到底在哪个分支？
+- 哪个 worktree 对应哪个分支？
+- 某个分支是不是已经被别的 worktree 占用了？
+
+这几个问题对应的命令分别是：
+
+```bash
+# 总表：看所有 worktree、路径、当前 commit、当前分支
+git worktree list
+
+# 当前目录：看我现在就在谁上面
+git branch --show-current
+git status --branch
+
+# 从分支视角看：哪些分支已经被别的 worktree checkout 住
+git branch -vv
+git branch
+```
+
+你会看到类似这样的输出：
+
+```bash
+$ git worktree list
+/Users/user/projects/myapp                    a1b2c3d [main]
+/Users/user/projects/myapp/.worktrees/review e4f5g6h [pr-42]
+
+$ git branch
++ pr-42
+* main
+```
+
+这里的 `*` 表示"当前目录正在这个分支上"，`+` 表示"这个分支已经被其他 worktree checkout 住了"。日常记住一条就够：**总表看 `git worktree list`，当前目录看 `git branch --show-current`。**
+
+### 三个最常见的创建姿势
+
+```bash
+# 1) 基于当前 HEAD 开一个新分支，并在新 worktree 里切过去
+git worktree add ../myapp.wt/feat-login -b feat-login
+
+# 2) 在新 worktree 里打开一个已有分支
+git worktree add ../myapp.wt/release-1.2 release-1.2
+
+# 3) 开一个临时实验目录，不绑定分支（detached HEAD）
+git worktree add --detach ../myapp.wt/scratch
+```
+
+如果你只是想 review、做一次性实验或复现 bug，第 3 种很顺手；如果这件事会产生要提交的结果，还是优先用独立分支。
+
+---
+
+## 实战流程：一个 hotfix 场景
+
+一套可以直接抄的流程。假设你在 `~/projects/myapp` 主目录的 `main` 分支写东西，测试账号登着、dev server 跑着，线上突然爆了个 bug。
+
+**命名约定**：副 worktree 统一放在 `<project>.wt/` 下，目录名和分支名保持一致——看一眼路径就知道自己在哪个分支，不用 `git status`。`.wt/` 只是个习惯后缀，你写 `-worktrees/` 或 `.worktrees/` 都行，统一就好。
+
+如果你打算把 worktree 直接放在仓库里面，比如：
+
+```text
+repo/
+  .worktrees/
+    hotfix-login/
+```
+
+那在创建之前，先确保 `.worktrees/` 被 `.gitignore` 忽略掉：
+
+```gitignore
+.worktrees/
+```
+
+否则主工作区的 `git status` 会把整个 worktree 目录树都当成未跟踪文件，体验会非常差。
+
+```bash
+# Step 1: 开一个新 worktree，基于 origin/main 拉一个新分支
+git worktree add ../myapp.wt/hotfix-login -b hotfix-login origin/main
+
+# Step 2: 进新目录，装依赖（node_modules 每个 worktree 要单独装）
+cd ../myapp.wt/hotfix-login
+pnpm install
+
+# Step 3: 开新 IDE 窗口、新 AI session，在这个目录干活
+#         原 ~/projects/myapp 那边一动不动，可以随时切回去比对代码
+
+# Step 4: 改完、commit、push
+git push -u origin hotfix-login
+
+# Step 5: 合并后回主目录清理
+cd ~/projects/myapp
+git worktree remove ../myapp.wt/hotfix-login
+git branch -d hotfix-login
+```
+
+**第 3 步是灵魂**：一定要开**新的 IDE 窗口和新的 AI session**。如果在原窗口里 `cd` 过去继续，AI 的上下文还是旧的，IDE 的文件标签也还是旧的——那就失去了 worktree 最大的价值（环境隔离）。
+
+**前端彩蛋**：两个 worktree 同时跑 `pnpm dev` 会抢同一个端口，用 `PORT=3001 pnpm dev` 解决。顺带说一句，`.env.local` 每个 worktree 独立（它不进 git），可以在不同 worktree 配不同的本地端口、本地数据库、feature flag，互不干扰——这反而是 worktree 优于单目录切分支的一个隐藏好处。
+
+---
+
+## 清理、误删和修复
+
+worktree 真正容易把人绕晕的，不是创建，而是清理时"目录删掉了，但 Git 还记得它"。把这几种情况分开记：
+
+```bash
+# 正常删除：优先用这个
+git worktree remove ../myapp.wt/hotfix-login
+
+# 如果你手动 rm -rf 过某个 worktree 目录，清理残留元数据
+git worktree prune
+
+# 如果 worktree 或主仓库被你手动挪了位置，修复指向关系
+git worktree repair
+```
+
+可以把它理解成三条规则：
+
+- **还在，想删** -> `remove`
+- **已经被手动删了，Git 还记着** -> `prune`
+- **没删，只是路径变了** -> `repair`
+
+正常情况下，永远优先 `git worktree remove`，不要顺手 `rm -rf`。因为 `remove` 会检查未提交改动并拦住你，而手动删目录只会留下一个之后还得补救的烂尾状态。
+
+---
+
+## 速查索引
+
+按最可能的检索路径排序：
+
+| 想查 | 看哪节 |
+|------|-------|
+| 命令怎么写 | [核心命令](#核心命令四条够用) |
+| 怎么看 worktree 对应哪个分支 | [最常用的观察命令](#最常用的观察命令) |
+| 新分支 / 旧分支 / 临时实验怎么建 | [三个最常见的创建姿势](#三个最常见的创建姿势) |
+| 路径怎么起名 | [实战流程](#实战流程一个-hotfix-场景) |
+| 仓库内建 `.worktrees/` 要注意什么 | [实战流程](#实战流程一个-hotfix-场景) 开头的 `.gitignore` 提醒 |
+| 值不值得用 | [对比"多份 clone"](#对比多份-clone诚实的-tradeoff) |
+| 和 checkout 什么区别 | [和 `git checkout` 的真正区别](#和-git-checkout-的真正区别) |
+| 遇到"already checked out"或奇怪的 `+` | [必须知道的几条局限](#必须知道的几条局限) |
+| 不小心手动删了目录怎么办 | [清理、误删和修复](#清理误删和修复) |
+| 两个 dev server 打架 | [实战流程](#实战流程一个-hotfix-场景) 末尾彩蛋 |
+
+写 feature、review PR、救火 hotfix、跑长实验——这些场景的共同特征都是"主环境不能动，但需要立刻在另一个分支干活"。worktree 的设计原语和它们完美契合：共享 `.git` 让多个目录天然同步分支和对象，独立 HEAD/index/文件让每个目录互不干扰。学会之后，`stash` + `checkout` 这一对组合拳会从你的日常词典里慢慢淡出——更少的上下文切换、更快的回到状态、更稳的多线程开发。
