@@ -24,6 +24,7 @@ mintlify dev
 
 ```
 ├── ai/
+│   ├── agent-skills-guide.mdx
 │   ├── ai-era-frontend-workflow.mdx
 │   ├── harness-design-long-running-apps.mdx
 │   ├── learn-oss-project.mdx

@@ -1,0 +1,299 @@
+---
+title: 给 Claude Code 装上工程纪律：agent-skills 插件实战指南
+description: >-
+  Addy Osmani 的 agent-skills 把 Claude Code 从"写最短代码"调教成"守工程纪律"——20 个 skill、7
+  条斜杠命令、3 个 agent persona 的完整落地指南。
+---
+
+> AI 写代码很快，但最短路径通常意味着跳过 spec、跳过测试、跳过 review。[agent-skills](https://github.com/addyosmani/agent-skills)（Addy Osmani 出品）把资深工程师的纪律编码成 Claude Code 可执行的流程——20 个 skill、7 条斜杠命令，覆盖从"想法"到"上线"的完整生命周期。
+
+---
+
+## 一、为什么需要这个插件
+
+用 Claude Code 一段时间后，你大概率熟悉这些场景：
+
+- 任务一丢，它直接开写，写到一半才发现需求理解偏了
+- 改了 A，B 悄悄坏了——因为没测试
+- 说"完成了"，但功能从没跑通过
+- Bug 反复修，每次都在猜
+
+不是模型能力不够，是**工程纪律缺失**。
+
+agent-skills 的做法：把 senior engineer 的每个工作习惯——写 spec、定任务粒度、TDD、五轴 review、灰度发布——拆成独立的 skill，用斜杠命令串成流水线。Claude Code 加载后，默认按这条流水线走。
+
+---
+
+## 二、一张图看懂全貌
+
+```
+  DEFINE          PLAN           BUILD          VERIFY         REVIEW          SHIP
+ ┌──────┐      ┌──────┐      ┌──────┐      ┌──────┐      ┌──────┐      ┌──────┐
+ │ Idea │ ───▶ │ Spec │ ───▶ │ Code │ ───▶ │ Test │ ───▶ │  QA  │ ───▶ │  Go  │
+ │Refine│      │  PRD │      │ Impl │      │Debug │      │ Gate │      │ Live │
+ └──────┘      └──────┘      └──────┘      └──────┘      └──────┘      └──────┘
+  /spec          /plan          /build        /test         /review       /ship
+```
+
+六个阶段对应七条斜杠命令（REVIEW 阶段多一条 `/code-simplify`）。每条命令背后自动激活相关 skill。
+
+---
+
+## 三、10 分钟装上并跑通
+
+### 安装
+
+在 Claude Code 里执行：
+
+```
+/plugin marketplace add addyosmani/agent-skills
+/plugin install agent-skills@addy-agent-skills
+```
+
+重启会话后，`/spec`、`/plan`、`/build`、`/test`、`/review`、`/code-simplify`、`/ship` 七条命令可用。
+
+> **SSH 报错？** 插件市场默认用 SSH 拉仓库。没配 SSH key 的话，改用 HTTPS：
+> ```bash
+> git config --global url."https://github.com/".insteadOf "git@github.com:"
+> ```
+
+### 跑通一个最小 demo
+
+建个空目录，新开 Claude Code 会话，输入：
+
+```
+/spec 做一个命令行天气查询工具，输入城市，输出当前温度和天气
+```
+
+Claude 会先列出它正在做的假设（"假设用 Node.js + 公开 OpenWeather API，假设只支持英文城市名..."），让你纠正或确认。确认后生成一份完整 `SPEC.md`，包含：
+
+- Objective（目标和用户）
+- Commands（完整的 build / test / dev 命令）
+- Project Structure（目录布局）
+- Code Style（一段真实代码片段示范）
+- Testing Strategy（测试框架和覆盖预期）
+- Boundaries（Always / Ask first / Never 三层边界）
+
+然后 `/plan` 把 spec 拆成可执行任务；`/build` 进入 TDD 循环一个一个做。整条流水线跑下来，项目根目录会多出 `SPEC.md`、`tasks/plan.md`、`tasks/todo.md` 几个"工作产物"——进版本控制，让人和 agent 共享事实源。
+
+---
+
+## 四、仓库里有什么
+
+```
+agent-skills/
+├── skills/               # 20 个核心 skill（每个一个子目录 + SKILL.md）
+├── agents/               # 3 个 staff-engineer 级 persona
+├── references/           # 4 份速查清单（测试/安全/性能/可访问性）
+├── hooks/                # session 生命周期钩子
+└── .claude/commands/     # 7 条斜杠命令
+```
+
+四个目录各司其职：
+
+| 目录 | 角色 | 你和它打交道的方式 |
+|------|------|-------------------|
+| `skills/` | 流水线的"工序" | 被斜杠命令自动调用，也可直接引用 |
+| `agents/` | 特殊场景的"角色扮演" | 需要某种视角的深度 review 时手动调 |
+| `references/` | skill 需要时才翻的"附录" | 很少直接用，skill 按需加载 |
+| `.claude/commands/` | 流水线的"触发器" | 日常主要靠它 |
+
+---
+
+## 五、七条斜杠命令怎么用
+
+### `/spec` — 先想清楚再写代码
+
+**场景**：新项目、新功能、需求模糊时。
+
+触发后 Claude 先问关键问题（目标、用户、技术栈、边界），然后产出 `SPEC.md`。核心技巧是**先浮现假设**：
+
+```
+ASSUMPTIONS I'M MAKING:
+1. This is a web application (not native mobile)
+2. Authentication uses session-based cookies (not JWT)
+3. The database is PostgreSQL
+→ Correct me now or I'll proceed with these.
+```
+
+还有**把模糊需求翻译成可验证标准**：`"make the dashboard faster"` 会被翻成 `LCP < 2.5s, CLS < 0.1`，让你点头或修正。
+
+### `/plan` — 把 spec 拆成能做的任务
+
+**场景**：spec 确定后，下手前。
+
+产出 `tasks/plan.md`，每个任务带 acceptance criteria 和验证方式，按依赖排序，每个任务触及文件控制在 5 个以内。
+
+### `/build` — 增量实现 + TDD
+
+**场景**：开始写代码。
+
+这是 7 条命令里**最值回票价**的一条。它同时激活 `incremental-implementation` 和 `test-driven-development` 两个 skill，每个任务走一遍：
+
+```
+读 acceptance → 写失败测试 (RED) → 最小实现通过 (GREEN)
+  → 跑全量测试检查回归 → 构建验证 → 带消息 commit → 下一个
+```
+
+任何环节失败，自动切到 `debugging-and-error-recovery` skill 做五步定位：reproduce → localize → reduce → fix → guard。
+
+### `/test` — 给已有代码补测试
+
+**场景**：修 bug 或给没测试的代码补保护。
+
+关键技巧是 **Prove-It Pattern**：bug 报告到达后**不要先修**，先写一个复现 bug 的测试让它失败；再修代码让测试通过。这样修复和回归保护一步到位。
+
+### `/review` — 五轴 review + 严重度标签
+
+**场景**：合并前。
+
+对改动按五个维度评分：Correctness / Readability / Architecture / Security / Performance。每条反馈自动带严重度标签：
+
+| 标签 | 含义 |
+|---|---|
+| **Critical:** | 阻塞合并（安全漏洞、数据丢失） |
+| *(无前缀)* | 必改 |
+| **Optional:** | 建议 |
+| **Nit:** | 可忽略（格式、风格偏好） |
+| **FYI:** | 仅供参考 |
+
+这套标签体系直接能抄进团队 PR 模板，避免"所有反馈都像必改"的心智负担。
+
+### `/code-simplify` — 减法
+
+**场景**：代码能跑，但读起来累。
+
+核心原则是 **Chesterton's Fence**（不理解围栏为什么在那就别拆）和 **Rule of 500**（1000 行能 100 行做完就是失败）。只砍复杂度，不改行为。
+
+### `/ship` — 发布清单
+
+**场景**：准备部署生产。
+
+会按清单过一遍：feature flag 是否就位、灰度策略、回滚方案、监控告警、文档同步。原则是 **Faster is safer**——小批量、频繁、可回滚，比积攒大版本安全得多。
+
+---
+
+## 六、20 个 skill 按阶段速览
+
+斜杠命令只是入口，背后是 20 个具体 skill。你可以绕过命令直接引用任何一个。
+
+**Define（2）**
+- `idea-refine`——散发/收敛式提问把模糊想法变具体
+- `spec-driven-development`——六区块 PRD，带人审关卡
+
+**Plan（1）**
+- `planning-and-task-breakdown`——任务拆到"单次专注可完成"粒度
+
+**Build（6）**
+- `incremental-implementation`——纵向切片、feature flag、可回滚
+- `test-driven-development`——RED/GREEN/REFACTOR + 测试金字塔 80/15/5
+- `context-engineering`——按任务加载上下文，不要塞爆
+- `source-driven-development`——每个框架决定都要引官方文档
+- `frontend-ui-engineering`——组件架构 + WCAG 2.1 AA 无障碍
+- `api-and-interface-design`——契约优先、Hyrum's Law、错误语义
+
+**Verify（2）**
+- `browser-testing-with-devtools`——走 Chrome DevTools MCP 抓真运行时数据
+- `debugging-and-error-recovery`——五步定位 + Stop-the-line
+
+**Review（4）**
+- `code-review-and-quality`——五轴 + 严重度标签 + change sizing
+- `code-simplification`——Chesterton's Fence + Rule of 500
+- `security-and-hardening`——OWASP Top 10 + 三层边界
+- `performance-optimization`——先测量再优化，Core Web Vitals 目标
+
+**Ship（5）**
+- `git-workflow-and-versioning`——主干开发，~100 行原子 commit
+- `ci-cd-and-automation`——Shift Left + 质量门 + feature flag
+- `deprecation-and-migration`——把代码当负债，主动废弃
+- `documentation-and-adrs`——架构决策记录（ADR）
+- `shipping-and-launch`——发布前清单、灰度、回滚流程
+
+---
+
+## 七、三个 agent persona 怎么调
+
+斜杠命令给你流水线，persona 给你**视角**。合并前想要一个更挑剔的 review 时手动调：
+
+| Persona | 视角 | 什么时候调 |
+|---------|------|-----------|
+| `code-reviewer` | 资深 staff engineer | 任何改动合并前——默认五轴 review |
+| `test-engineer` | QA 专家 | 测试策略评估、覆盖率分析、补测试 |
+| `security-auditor` | 安全工程师 | 处理用户输入、认证、对外 API 时 |
+
+典型调法：
+
+```
+Use the security-auditor persona to review this PR for OWASP Top 10 issues.
+```
+
+Claude 会切换成该角色输出，包括 Verdict（APPROVE / REQUEST CHANGES）、Critical / Important / Suggestion 三档 issue、以及"做得好的地方"。直接能贴进 PR 评论。
+
+---
+
+## 八、一个隐藏亮点：anti-rationalization
+
+agent-skills 最独特的设计不是斜杠命令，是每个 SKILL.md 里的**反借口表**。
+
+AI 跳步骤时不是"忘了"，而是"主动合理化"：
+- *"这个任务很简单，不需要 spec"*
+- *"测试一会儿补"*
+- *"这个边界 case 应该不会发生"*
+
+`test-driven-development` skill 里直接写了针对这些借口的反驳：
+
+| 借口 | 反驳 |
+|---|---|
+| "我先写实现再补测试" | 那是事后验证，不是 TDD。测试的价值在于**先**定义正确 = 什么 |
+| "这改动太小不用测试" | Beyonce Rule：你喜欢它，就该给它加测试。基础设施改动不负责抓你的 bug |
+| "已经手动验证过了" | 手动验证不防回归。下次有人改动它你不会知道 |
+
+`spec-driven-development` 也一样：
+
+| 借口 | 反驳 |
+|---|---|
+| "这个简单，不需要 spec" | 简单任务不需要**长** spec，但仍需 acceptance criteria。两行 spec 也行 |
+| "Spec 会拖慢速度" | 15 分钟 spec 预防数小时返工 |
+| "需求会变" | 所以 spec 是 living document。过期 spec 也比没 spec 好 |
+
+这个设计相当于在 prompt 层给 Claude 打了一针**反偷懒疫苗**——每次它想走捷径时，反驳已经在同一文档里等着。值得单独拆一篇博客研究。
+
+---
+
+## 九、我的落地建议
+
+**最小可用子集**：只开三个，覆盖 AI 辅助开发最关键的质量缺口——
+1. `spec-driven-development`——定义要做什么
+2. `test-driven-development`——证明它工作
+3. `code-review-and-quality`——合并前验证质量
+
+对应只用 `/spec`、`/build`、`/review` 三条命令，其他命令需要时再引。
+
+**和团队流程对齐**：
+- 把 `/review` 的严重度标签（Critical / Nit / FYI）抄进 PR 模板，所有人的 review 用同一套前缀
+- `/spec` 产出的 `SPEC.md` 进版本控制，让它成为 PR 描述里可链接的事实源
+- `/ship` 的发布清单可以变成 GitHub Actions 的 check list
+
+**什么时候该跳出流程**：
+- 改一行 typo 不用 `/spec`
+- 探索性 prototype 不用 `/test` 全覆盖
+- 紧急 hotfix 可以先跳 `/review`、事后补
+
+Skill 是默认纪律，不是镣铐。它帮你守住下限，但上限永远是你自己。
+
+**组合其他 MCP**：
+- 配 Context7 MCP：`source-driven-development` skill 如虎添翼，框架 API 有官方文档直接引
+- 配 Chrome DevTools MCP：`browser-testing-with-devtools` 能拿真运行时数据，而不是靠 Claude 猜
+
+---
+
+## 十、参考链接
+
+- 项目主页：[github.com/addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)
+- 作者背景：Addy Osmani，Google Chrome 团队工程主管，web 性能与工程效率长期贡献者
+- 官方文档：[docs/getting-started.md](https://github.com/addyosmani/agent-skills/blob/main/docs/getting-started.md)、[docs/skill-anatomy.md](https://github.com/addyosmani/agent-skills/blob/main/docs/skill-anatomy.md)
+- 理论根基：[Software Engineering at Google](https://abseil.io/resources/swe-book)、[Google Engineering Practices](https://google.github.io/eng-practices/)
+
+相关阅读：
+- [AI 辅助开发的工程化之路：Superpowers Skills 全生命周期实战指南](./superpowers-workflow-guide.md)——另一套同类工具，可并用
+- [Levels of Agentic Engineering](./levels-of-agentic-engineering.md)——AI 工程化的能力分层

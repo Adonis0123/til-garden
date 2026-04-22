@@ -19,6 +19,7 @@
           {
             "group": "AI",
             "pages": [
+              "ai/agent-skills-guide",
               "ai/ai-era-frontend-workflow",
               "ai/harness-design-long-running-apps",
               "ai/learn-oss-project",
