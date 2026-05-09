@@ -33,7 +33,8 @@ mintlify dev
 │   ├── llm-wiki-pattern.mdx
 │   └── superpowers-workflow-guide.mdx
 ├── frontend/
-│   └── iconify-tailwind4.mdx
+│   ├── iconify-tailwind4.mdx
+│   └── nextjs-rendering-principles.mdx
 ├── tools/
 │   ├── ccstatusline-claude-code-status-bar.mdx
 │   ├── claude-code-hidden-commands.mdx

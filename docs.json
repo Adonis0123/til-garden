@@ -32,7 +32,8 @@
           {
             "group": "Frontend",
             "pages": [
-              "frontend/iconify-tailwind4"
+              "frontend/iconify-tailwind4",
+              "frontend/nextjs-rendering-principles"
             ]
           },
           {
