@@ -4,7 +4,10 @@ description: >-
   Karpathy 的 LLM Wiki 模式原本是"一个人读文章建知识库"的场景，但搬进代码项目会发生三件根本变化。本文以 NextJS
   项目为例，分析真正值得做的 5 个落地场景——ADR 决策档案、Feature 总图、依赖情报、Bug 档案、Onboarding
   Wiki——以及哪些事应该交给 TypeScript、Prisma、Storybook 这些现有工具而不是 LLM wiki
+date: '2026-04-06'
+updated: '2026-04-06'
 ---
+> 发布于 2026-04-06 · 更新于 2026-04-06
 
 > 前置阅读：[让 LLM 持续维护你的知识库：Karpathy LLM Wiki 模式精读与落地指南](./llm-wiki-pattern.md)
 >
@@ -253,7 +256,7 @@ docs/wiki/features/
 
 Feature Page 的价值是提供一个**入口页**，让你不用记得每个工具在哪。更强的是：**PR bot 可以在 review 里自动贴一句：**
 
-> ⚠️ 你这次改动触及了 `checkout` feature。根据 `docs/wiki/features/checkout.md` 这份 Feature Page，相关的技术债包括 "Payment webhook 重试逻辑重复"，你要不要一起处理？
+> ⚠️ 你这次改动触及了 `checkout` feature。根据 [checkout.md 的 Feature Page](../docs/wiki/features/checkout.md)，相关的技术债包括 "Payment webhook 重试逻辑重复"，你要不要一起处理？
 
 这就让 wiki 从"被动文档"变成了**主动的 review 助手**。
 

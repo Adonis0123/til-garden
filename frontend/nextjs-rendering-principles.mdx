@@ -1,7 +1,10 @@
 ---
 title: Next.js 服务端与客户端渲染原理：先别背名词，先看一条请求怎么走
 description: 从请求链路出发理解 Next.js 的 CSR、SSR、SSG、hydration、getServerSideProps 和 App Router 渲染模型
+date: '2026-05-08'
+updated: '2026-05-09'
 ---
+> 发布于 2026-05-08 · 更新于 2026-05-09
 
 很多人学 Next.js 渲染时，最容易卡在一堆缩写里：SSR、CSR、SSG、ISR、RSC、hydration。每个词单独看都能懂，一放到真实场景里就开始乱：
 
@@ -29,25 +32,44 @@ description: 从请求链路出发理解 Next.js 的 CSR、SSR、SSG、hydration
 
 把这三个问题回答清楚，绝大多数 Next.js 渲染问题就顺了。
 
-把它画成一张总图，大概是这样：
+如果直接把所有分支塞进一张横向图，实际页面里会被压得很小。这里拆成两张纵向图看。
+
+第一张先看：请求有没有真正进入 Next.js 服务器。
 
 ```mermaid
-flowchart LR
-  user["用户访问页面"] --> edge{"CDN / 缓存<br/>能直接回答吗？"}
-  edge -->|"能"| cached["返回缓存的 HTML / JSON"]
-  edge -->|"不能"| next["进入 Next.js 服务器"]
+flowchart TD
+  request["用户请求页面"] --> cache{"CDN / 缓存<br/>能直接回答吗？"}
+  cache -->|"能"| cached["返回缓存的<br/>HTML / JSON"]
+  cached --> browser["浏览器显示结果"]
 
-  next --> html{"第一份 HTML<br/>在哪里生成？"}
+  cache -->|"不能"| next["进入 Next.js 服务器"]
+  next --> render{"这次需要<br/>服务端计算吗？"}
+  render -->|"需要"| serverWork["运行服务端逻辑<br/>如 getServerSideProps"]
+  render -->|"不需要"| staticFile["读取静态产物"]
+  serverWork --> browser
+  staticFile --> browser
+```
+
+第二张再看：第一份 HTML 是谁生成的。
+
+```mermaid
+flowchart TD
+  html{"第一份 HTML<br/>在哪里生成？"}
   html -->|"浏览器 JS 生成"| csr["CSR"]
   html -->|"请求时服务器生成"| ssr["SSR"]
   html -->|"构建时提前生成"| ssg["SSG / 静态化"]
 
   csr --> jsRuntime["浏览器运行 JS"]
-  ssr --> browser["浏览器显示 HTML"]
-  ssg --> browser
-  cached --> browser
-  jsRuntime --> reactHydrate["React hydration<br/>接管交互"]
-  browser --> reactHydrate
+  jsRuntime --> data["浏览器请求数据"]
+  data --> clientRender["浏览器渲染页面"]
+
+  ssr --> serverHtml["服务器返回 HTML"]
+  ssg --> staticHtml["CDN / 服务器返回<br/>预生成 HTML"]
+
+  serverHtml --> hydrate["React hydration<br/>接管交互"]
+  staticHtml --> hydrate
+  clientRender --> interactive["页面可交互"]
+  hydrate --> interactive
 ```
 
 这张图里最重要的分叉不是“名词是什么”，而是“请求有没有到服务器逻辑”“第一份 HTML 是什么时候生成的”。
@@ -338,26 +360,15 @@ App Router 里没有 `getServerSideProps`。但这不等于 App Router 没有服
 这一层最好也画出来：
 
 ```mermaid
-flowchart LR
-  subgraph server["Server"]
-    sc["Server Components<br/>取数据 / 读数据库 / 用 secret"]
-    rsc["生成 RSC Payload"]
-    html["预渲染 HTML"]
-    sc --> rsc
-    rsc --> html
-  end
-
-  subgraph client["Browser"]
-    preview["先显示 HTML"]
-    reconcile["用 RSC Payload 协调组件树"]
-    hydrateClient["hydrate Client Components"]
-    interactive["页面可交互"]
-    preview --> reconcile --> hydrateClient --> interactive
-  end
-
-  html --> preview
-  rsc --> reconcile
-  cc["Client Components<br/>useState / onClick / useEffect"] --> hydrateClient
+flowchart TD
+  request["请求 App Router 页面"] --> sc["Server Components<br/>取数据 / 读数据库 / 用 secret"]
+  sc --> rsc["生成 RSC Payload"]
+  rsc --> html["预渲染 HTML"]
+  html --> preview["浏览器先显示 HTML"]
+  preview --> reconcile["用 RSC Payload<br/>协调组件树"]
+  reconcile --> hydrateClient["hydrate Client Components"]
+  clientCode["Client Components<br/>useState / onClick / useEffect"] --> hydrateClient
+  hydrateClient --> interactive["页面可交互"]
 ```
 
 一个典型写法是：
