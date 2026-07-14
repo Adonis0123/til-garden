@@ -31,6 +31,7 @@ mintlify dev
 │   ├── levels-of-agentic-engineering.mdx
 │   ├── llm-wiki-in-code-projects.mdx
 │   ├── llm-wiki-pattern.mdx
+│   ├── mattpocock-skills.mdx
 │   └── superpowers-workflow-guide.mdx
 ├── frontend/
 │   ├── iconify-tailwind4.mdx
